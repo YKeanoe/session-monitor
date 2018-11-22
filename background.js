@@ -63,9 +63,11 @@ const ignoredMessage = [
     'Network.resourceChangedPriority',
     'Network.eventSourceMessageReceived',
     'Network.webSocketWillSendHandshakeRequest',
+    'Network.webSocketHandshakeResponseReceived',
     'Network.webSocketFrameSent',
     'Network.webSocketFrameReceived',
-    'Network.webSocketCreated'
+    'Network.webSocketCreated',
+    'Network.webSocketClosed'
 ];
 
 // var timer;
@@ -75,13 +77,44 @@ const ignoredMessage = [
 
 (function(){
 
-    if (!('indexedDB' in window)) {
-        console.log('This browser doesn\'t support IndexedDB');
-        // return;
-      } else{
-          console.log("supportop");
-      }
+    // var dbPromise = idb.open('test-db1', 1, upgradeDB => {
+    //     upgradeDB.createObjectStore('objs', { autoIncrement: true })
+    // }).then(db => {
+    //     console.log("DB!", db);
+    //     const tx = db.transaction('objs', 'readwrite');
+    //     tx.objectStore('objs').put({
+    //         id: 123456,
+    //         data: {foo: "bar"}
+    //     });
+    //     return tx.complete;
+    // });
 
+    // TODO FIGURE OUT INDEXEDDB
+
+    var dbPromise = idb.open('test-db1', 1, upgradeDB => {
+        upgradeDB.createObjectStore('objs', { autoIncrement: true })
+    }).then(db => {
+        console.log("DB!", db);
+        const tx = db.transaction('objs', 'readwrite');
+        tx.objectStore('objs').put({
+            id: 123456,
+            data: {foo: "bar"}
+        });
+        return tx.complete;
+    });
+
+    var dbPromise = idb.open('test-db1', 1, upgradeDB => {
+        upgradeDB.createObjectStore('objs', { autoIncrement: true })
+    }).then(db => {
+        return db.transaction('objs')
+            .objectStore('objs').getAll();
+    }).then(
+        allObjs => console.log(allObjs)
+    );
+
+
+
+    // idb.delete('test-db1');
 
     console.log("Start session monitor");
     sessionMonitor.timer = (new Date).getTime();
