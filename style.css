@@ -1,0 +1,62 @@
+body{
+    width: 400px;
+    margin: 0;
+}
+
+
+#title{
+    background-color: #4D658E;
+    color: #EEEEEE;
+    padding: 8px;
+    text-align: center;
+    font-size: 1.2em;
+}
+
+#body{
+    padding: 8px;
+}
+
+#session-table{
+    width: 100%;
+}
+
+.timer{
+    font-size: 20px;
+    text-align: center;
+}
+
+.timer-title{
+    font-weight: bold;
+}
+
+.timer-time{
+
+}
+
+#session-table > tbody > tr{
+    text-align: right;
+}
+
+#session-table > tbody > tr > :nth-child(1){
+    text-align: left;
+}
+
+
+#session-table > tbody > tr:nth-child(2n+1){
+    background-color: #EDEDED;
+}
+
+#session-table > tbody > tr:nth-child(1),
+#session-table > tbody > tr:nth-last-child(1) {
+    background-color: #4D658E;
+    color: #EEEEEE;
+}
+
+/* #session-table > tbody > tr:nth-last-child(1){
+    background-color: #4D658E;
+    color: white;
+} */
+
+#session-table > tbody > tr > * {
+    padding: 3px 8px;
+}

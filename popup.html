@@ -1,0 +1,57 @@
+<!doctype html>
+<html>
+<head>
+    <title>Session Monitor</title>
+    <script src="vendors/jquery/jquery-3.2.1.min.js"></script>
+    <script src="vendors/charts/Chart.min.js"></script>
+    <script src="vendors/momentjs/moment.min.js"></script>
+    <script src="vendors/momentjs/moment-duration-format.js"></script>
+    <script src="popup.js"></script>
+    <link rel="stylesheet" type="text/css" href="style.css">
+</head>
+<body>
+    <div id="title">
+        Session Monitor
+    </div>
+    <div id="body">
+        <Button class="btnSave">
+            Test Save
+        </Button>
+        <Button class="btnPrint">
+            Print Storage
+        </Button>
+
+        <Button class="btnClear">
+            Clear Storage
+        </Button>
+
+        <br/>
+        <div class="timer">
+            <div class="timer-title">
+                Session timer
+            </div>
+            <div class="timer-time">
+                <span id="session-timer"></span>
+            </div>
+        </div>
+
+        <br/>
+
+        <canvas id="myChart"></canvas>
+
+        <table id="session-table">
+            <tbody id="session-files">
+                <tr>
+                    <th>Page</th>
+                    <th>Transferred</th>
+                    <th>Cached</th>
+                </tr>
+            </tbody>
+        </table>
+
+        <br/>
+
+        Show details, hide debugger tab
+    </div>
+</body>
+</html>
