@@ -48,7 +48,11 @@ let sessionMonitor = {
      * stopwatch is an integer used to store how much time has passed since
      * the stopwatch has started.
      */
-    stopwatch: 0
+    stopwatch: 0,
+    /**
+     * dbPromise is an indexedDB promise object.
+     */
+    dbPromise: null
 }
 
 // var pages = [];
@@ -77,44 +81,58 @@ const ignoredMessage = [
 
 (function(){
 
-    // var dbPromise = idb.open('test-db1', 1, upgradeDB => {
-    //     upgradeDB.createObjectStore('objs', { autoIncrement: true })
-    // }).then(db => {
-    //     console.log("DB!", db);
-    //     const tx = db.transaction('objs', 'readwrite');
-    //     tx.objectStore('objs').put({
+    // TODO FIGURE OUT INDEXEDDB
+
+    sessionMonitor.dbPromise = idb.open('session-monitor-db', 1, upgradeDB => {
+        upgradeDB.createObjectStore('session', { keyPath: ['id', 'domain'] });
+        upgradeDB.createObjectStore('watchSession', { keyPath: ['id', 'domain'] });
+    })
+
+    // sessionMonitor.dbPromise.then(db => {
+    //     const tx = db.transaction('session', 'readwrite');
+    //     tx.objectStore('session').put({
     //         id: 123456,
-    //         data: {foo: "bar"}
+    //         data: {
+    //             domain: 'www.youtube.com',
+    //             transferred: 10,
+    //             cachedTransferred: 4000,
+    //             update: 1541582906,
+    //             timer: 0
+    //         }
     //     });
     //     return tx.complete;
     // });
 
-    // TODO FIGURE OUT INDEXEDDB
+    // sessionMonitor.dbPromise.then(db => {
+    //     const tx = db.transaction('session', 'readwrite');
+    //     tx.objectStore('session').put({
+    //         id: 123456,
+    //         data: {
+    //             pages: [
+    //                 {
+    //                     domain: 'www.youtube.com',
+    //                     transferred: 3333,
+    //                     cachedTransferred: 4000,
+    //                     update: 1541582906,
+    //                     timer: 0
+    //                 }
+    //             ]
+    //         }
 
-    var dbPromise = idb.open('test-db1', 1, upgradeDB => {
-        upgradeDB.createObjectStore('objs', { autoIncrement: true })
-    }).then(db => {
-        console.log("DB!", db);
-        const tx = db.transaction('objs', 'readwrite');
-        tx.objectStore('objs').put({
-            id: 123456,
-            data: {foo: "bar"}
-        });
-        return tx.complete;
-    });
-
-    var dbPromise = idb.open('test-db1', 1, upgradeDB => {
-        upgradeDB.createObjectStore('objs', { autoIncrement: true })
-    }).then(db => {
-        return db.transaction('objs')
-            .objectStore('objs').getAll();
-    }).then(
-        allObjs => console.log(allObjs)
-    );
+    //     });
+    //     return tx.complete;
+    // });
 
 
 
-    // idb.delete('test-db1');
+    // sessionMonitor.dbPromise.then(db => {
+    //     return db.transaction('session')
+    //         .objectStore('session').getAll();
+    // }).then(
+    //     allObjs => console.log(allObjs)
+    // );
+
+    // idb.delete('session-monitor-db');
 
     console.log("Start session monitor");
     sessionMonitor.timer = (new Date).getTime();
@@ -246,7 +264,6 @@ function AttachDebugger(tab) {
  */
 function onAttach(tabId){
     if(chrome.runtime.lastError){
-        console.error("WOA!");
         console.error(chrome.runtime.lastError.message);
         return;
     }
@@ -339,9 +356,13 @@ function onEvent(debugeeId, msg, param) {
  * @param item {item Object}
  */
 function storeItem(item) {
+    // boolean variable to determine db update
+    let update = false;
+
     // Ignore empty network request
     if(item.dataLength === 0) return;
 
+    // Find target page from pages array
     targetPage = sessionMonitor.pages.find(function(e){
         return e.domain === item.page;
     });
@@ -352,7 +373,15 @@ function storeItem(item) {
         } else {
             targetPage.transferred += item.dataLength;
         }
+
+        // Check if page last update is more than 5 seconds ago
+        if((new Date).getTime() - targetPage.update >= 5000){
+            update = true;
+        }
+
+        // Update the update timer
         targetPage.update = (new Date).getTime();
+
     } else {
         // console.warn("Page not found for " + item.page);
         if(item.page === '') {
@@ -360,6 +389,7 @@ function storeItem(item) {
             console.log(item);
             console.log(item.page);
         }
+
         // console.log("Push new page " + item.page);
         let newPage = {
             domain: item.page,
@@ -368,10 +398,16 @@ function storeItem(item) {
             update: (new Date).getTime(),
             timer: 0
         }
+
+        update = true;
+        targetPage = newPage;
         sessionMonitor.pages.push(newPage);
     }
     // Set changes to true so that popup will update the data.
     sessionMonitor.changes = true;
+
+    // Update indexedDB if update boolean is true.
+    if(update) updateSessionStorage(id, targetPage);
 
     // console.log('%c Item ID ' + item.requestId + ' stored.', 'color: green;');
     // console.log(pages);
@@ -437,51 +473,49 @@ function checkAndSetStorage(){
     })
 }
 
-function saveSessionStorage(id){
+function updateSessionStorage(id){
     console.log('Save new storing session');
 
-    chrome.storage.local.get('session', function(sessions){
-        var sessions = (sessions.session) ? sessions.session : [];
-
-        var session = {
+    sessionMonitor.dbPromise.then(db => {
+        const tx = db.transaction('session', 'readwrite');
+        tx.objectStore('session').put({
             id: id,
-            duration: 0
-        }
-
-        sessions.unshift(session);
-
-        chrome.storage.local.set({ 'session' : sessions }, function(){
-            console.log("pages stored");
+            domain: 'www.youtube.com',
+            data: {
+                transferred: 10,
+                cachedTransferred: 4000,
+                update: 1541582906
+            }
         });
-
+        return tx.complete;
     });
 }
 
-function updateSessionStorage(id){
-    console.log('Start storing session');
+// function updateSessionStorage(id){
+//     console.log('Start storing session');
 
-    chrome.storage.local.get('session', function(sessions){
-        // Check empty storage ?! should not happen
-        if(!sessions.session){
-            console.error('Storage not found!!');
-            return;
-        }
-        // TODO TRY UPDATING EVERY STORE PAGE
-        var target = sessions.session.find(function(val){
-            return val.id == id;
-        });
+//     chrome.storage.local.get('session', function(sessions){
+//         // Check empty storage ?! should not happen
+//         if(!sessions.session){
+//             console.error('Storage not found!!');
+//             return;
+//         }
+//         // TODO TRY UPDATING EVERY STORE PAGE
+//         var target = sessions.session.find(function(val){
+//             return val.id == id;
+//         });
 
-        console.log(target);
+//         console.log(target);
 
-        target.duration = (new Date).getTime() - id;
-        //target.pages =
+//         target.duration = (new Date).getTime() - id;
+//         //target.pages =
 
-        chrome.storage.local.set({ 'session' : sessions }, function(){
-            console.log("pages stored");
-        });
+//         chrome.storage.local.set({ 'session' : sessions }, function(){
+//             console.log("pages stored");
+//         });
 
-    });
-}
+//     });
+// }
 
 function printSessionStorage(){
     chrome.storage.local.get('session', function(storedPages){
