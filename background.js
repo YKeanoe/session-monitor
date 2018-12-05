@@ -1,7 +1,3 @@
-// TODO removing unused items and making ui
-// some items are not removed
-// maybe because load failed? or maybe the splice function is faulty?
-
 /** ======================= Declaring Variables ============================= */
 
 /**
@@ -52,7 +48,11 @@ let sessionMonitor = {
     /**
      * dbPromise is an indexedDB promise object.
      */
-    dbPromise: null
+    dbPromise: null,
+    /**
+     * id is a unique ID for each session. id will be created using unix ms.
+     */
+    id: 0
 }
 
 // var pages = [];
@@ -136,8 +136,8 @@ const ignoredMessage = [
 
     console.log("Start session monitor");
     sessionMonitor.timer = (new Date).getTime();
+    sessionMonitor.id = (new Date).getTime();
     attachAllDebugger();
-    checkAndSetStorage();
 }());
 
 
@@ -156,8 +156,6 @@ chrome.tabs.onUpdated.addListener(function(tabId, changeInfo, tab){
 });
 
 chrome.windows.onRemoved.addListener(function() {
-    console.log('window removed');
-    // checkAndSaveStorage();
 })
 
 
@@ -407,7 +405,7 @@ function storeItem(item) {
     sessionMonitor.changes = true;
 
     // Update indexedDB if update boolean is true.
-    if(update) updateSessionStorage(id, targetPage);
+    if(update) updateSessionStorage(targetPage);
 
     // console.log('%c Item ID ' + item.requestId + ' stored.', 'color: green;');
     // console.log(pages);
@@ -460,77 +458,26 @@ function defineItem(item, debugeeId){
     });
 }
 
-function checkAndSetStorage(){
-    // chrome.storage.local.clear(function(x){console.log(x)});
-    chrome.storage.local.get('pages', function(storedPages){
-        if(storedPages.pages){
-            console.log("not empty");
-            sessionMonitor.pages = storedPages.pages;
-        } else{
-            console.log(" empty");
-            sessionMonitor.pages = [];
-        }
-    })
-}
-
-function updateSessionStorage(id){
-    console.log('Save new storing session');
+/**
+ * updateSessionStorage is a function that will save the pages data into
+ * indexedDB.
+ * @param page {Page Object}
+ */
+function updateSessionStorage(page){
+    console.log('Saving page session');
 
     sessionMonitor.dbPromise.then(db => {
         const tx = db.transaction('session', 'readwrite');
         tx.objectStore('session').put({
-            id: id,
-            domain: 'www.youtube.com',
+            id: sessionMonitor.id,
+            domain: page.domain,
             data: {
-                transferred: 10,
-                cachedTransferred: 4000,
-                update: 1541582906
+                transferred: page.transferred,
+                cachedTransferred: page.cachedTransferred,
+                update: (new Date).getTime()
             }
         });
         return tx.complete;
-    });
-}
-
-// function updateSessionStorage(id){
-//     console.log('Start storing session');
-
-//     chrome.storage.local.get('session', function(sessions){
-//         // Check empty storage ?! should not happen
-//         if(!sessions.session){
-//             console.error('Storage not found!!');
-//             return;
-//         }
-//         // TODO TRY UPDATING EVERY STORE PAGE
-//         var target = sessions.session.find(function(val){
-//             return val.id == id;
-//         });
-
-//         console.log(target);
-
-//         target.duration = (new Date).getTime() - id;
-//         //target.pages =
-
-//         chrome.storage.local.set({ 'session' : sessions }, function(){
-//             console.log("pages stored");
-//         });
-
-//     });
-// }
-
-function printSessionStorage(){
-    chrome.storage.local.get('session', function(storedPages){
-        console.log(storedPages);
-    });
-}
-
-function clearSessionStorage(){
-    chrome.storage.local.clear(function(x){console.log(x)});
-}
-
-function savePages(){
-    console.log('storing pages');
-    chrome.storage.local.set({ "pages": sessionMonitor.pages }, function(){
-        console.log("pages stored");
     });
 }
 
@@ -578,16 +525,26 @@ function GetTimer(){
     // return timer;
 }
 
-function savuu(){
-    // return "savuuuu";
-    // savePages();
-    saveSessionStorage((new Date).getTime());
-}
+function openMainPage(){
+    chrome.tabs.query(
+        {
+            url: 'chrome-extension://ghlogoapdidadhneeomhknldlgooaooi/index.html'
+        },
+        function(tab) {
+            if(tab.length !== 0) {
+                chrome.tabs.update(tab[0].id, {active:true}, function(){});
+            }
+            else {
+                chrome.tabs.query({active: true}, function(tab) {
+                    // If selected tab is newtab, redirect tab. Else, open new tab.
+                    if(tab[0].url === 'chrome://newtab/') {
+                        chrome.tabs.update(tab[0].id, {url: 'index.html'}, function(){});
+                    } else {
+                        chrome.tabs.create({ url: chrome.runtime.getURL("index.html") });
+                    }
+                });
+            }
+        }
+    );
 
-function printuu(){
-    printSessionStorage();
-}
-
-function clearuu(){
-    clearSessionStorage();
 }

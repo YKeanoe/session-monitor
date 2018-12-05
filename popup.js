@@ -97,6 +97,10 @@ document.addEventListener('DOMContentLoaded', function() {
         background.clearuu();
     });
 
+    $('.btnPage').on('click', function(){
+        background.openMainPage();
+    });
+
     // Call updatePage the first time.
     updatePage(true);
 
@@ -105,7 +109,6 @@ document.addEventListener('DOMContentLoaded', function() {
         updatePage(false);
     }, 1000);
 });
-
 
 
 /**

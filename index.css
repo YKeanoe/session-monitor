@@ -1,0 +1,56 @@
+body{
+    margin: 0;
+}
+.header{
+    background-color: #4D658E;
+    color: #EEEEEE;
+    padding: 25px 5%;
+    display: flex;
+}
+
+.title{
+    font-size: 2em;
+    flex: 1 0 30%;
+}
+
+.navbar{
+    font-size: 1.6em;
+    flex: 1 0 70%;
+    justify-content: start;
+}
+
+.navbar-btn{
+    font-size: 1em;
+    padding: 0;
+    background-color: #4D658E;
+    color: #EEEEEE;
+    border: none;
+    padding: 0 5%;
+}
+
+.navbar-btn::before {
+    content: "";
+    height: 100%;
+    left: 0;
+    position: absolute;
+    top: 0;
+    transform: scaleY(0);
+    transition: all 0.3s ease-in-out 0s;
+    width: 2px;
+    z-index: 3;
+}
+
+/* TODO, make underline animation
+*/
+.navbar-btn::before {
+    border-left: 2px solid #cccccc;
+    transform-origin: 0 0 ;
+}
+
+.navbar-btn:hover::before {
+    transform: scaleY(1);
+}
+
+.navbar-btn:hover{
+    cursor: pointer;
+}
