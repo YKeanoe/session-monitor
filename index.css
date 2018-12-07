@@ -25,32 +25,52 @@ body{
     background-color: #4D658E;
     color: #EEEEEE;
     border: none;
-    padding: 0 5%;
+    margin: 0 2%;
+    transition: 2s;
 }
 
-.navbar-btn::before {
+.navbar-btn:after {
     content: "";
-    height: 100%;
-    left: 0;
-    position: absolute;
-    top: 0;
-    transform: scaleY(0);
-    transition: all 0.3s ease-in-out 0s;
-    width: 2px;
-    z-index: 3;
+    display: flex;
+    background: #000;
+    height: 4px;
+    width: 0;
+    transition: all 0.3s ease-in-out;
 }
 
-/* TODO, make underline animation
-*/
-.navbar-btn::before {
-    border-left: 2px solid #cccccc;
-    transform-origin: 0 0 ;
+.navbar-btn.active:after {
+    width: 100%;
 }
 
-.navbar-btn:hover::before {
-    transform: scaleY(1);
+.navbar-btn:hover:after {
+    width: 100%;
 }
 
 .navbar-btn:hover{
     cursor: pointer;
+}
+
+.data{
+    padding: 25px 10%;
+}
+
+tr{
+    height: 2em;
+}
+
+tr.table-line{
+    height: 0;
+}
+
+tr.table-line>td{
+    border-bottom: 1px solid black;
+}
+
+.table-data{
+    width: 100%;
+    font-size: 1.2em;
+}
+
+.table-data-row [rowspan]{
+    vertical-align: top;
 }
