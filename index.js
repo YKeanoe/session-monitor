@@ -15,12 +15,56 @@ const background = chrome.extension.getBackgroundPage();
         upgradeDB.createObjectStore('watchSession', { keyPath: ['id', 'domain'] });
     })
 
+    // dbPromise.then(db => {
+    //     return db.transaction('session')
+    //         .objectStore('session').getAll();
+    // }).then(
+    //     allObjs => {
+    //         console.log(allObjs);
+
+    //         allObjs.forEach(element => {
+    //             delete element.data;
+    //             delete element.domain;
+    //         });
+
+    //         for(var i = 0; i<allObjs.length; i++){
+    //             if(i === 0){
+    //                 continue;
+    //             }
+
+    //             if(allObjs[i] > allObjs[i-1]){
+    //                 console.log("WOAOAOAa");
+    //             }
+
+    //         }
+
+    //         console.log(allObjs);
+    //     }
+    // );
+
+
+
+    /**
+     * TODO
+     * Limit is ready to be set. Set per page after.
+     */
+
     dbPromise.then(db => {
+        let i = 0;
         return db.transaction('session')
-            .objectStore('session').get('1544091681810', 'www.youtube.com');
-    }).then(
-        allObjs => console.log(allObjs)
-    );
+                .objectStore('session')
+                .iterateCursor(null, 'prev', cursor => {
+                    if (!cursor || i > 5) {return;}
+                    console.log('Cursored at:', cursor.value);
+                    console.log(i);
+                    i ++;
+                    console.log(cursor);
+                    cursor.continue();
+                });
+    }).then(function() {
+        console.log('Done cursoring');
+    });
+
 
 
     // Set an interval and call updatePage each seconds.
