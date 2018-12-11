@@ -1,71 +1,30 @@
 const background = chrome.extension.getBackgroundPage();
+let dbPromise = null;
+let currentPage = 1;
 
 
-// TODO
-// Find out how to use get with id
+(function() {
 
-(function(){
+
     // TODO
-    // this page should call update page every x interval so it will be
-    // updated real time. but im not sure how.
-    // updatePage(true);
+    // Fix the date format in the table. it seems wrong.
 
-    var dbPromise = idb.open('session-monitor-db', 1, upgradeDB => {
+    console.log((new Date).getTime());
+    console.log(moment(1544544506507).format('ddd, Do MMM YYYY HH:mm'));
+
+    dbPromise = idb.open('session-monitor-db', 1, upgradeDB => {
         upgradeDB.createObjectStore('session', { keyPath: ['id', 'domain'] });
         upgradeDB.createObjectStore('watchSession', { keyPath: ['id', 'domain'] });
-    })
-
-    // dbPromise.then(db => {
-    //     return db.transaction('session')
-    //         .objectStore('session').getAll();
-    // }).then(
-    //     allObjs => {
-    //         console.log(allObjs);
-
-    //         allObjs.forEach(element => {
-    //             delete element.data;
-    //             delete element.domain;
-    //         });
-
-    //         for(var i = 0; i<allObjs.length; i++){
-    //             if(i === 0){
-    //                 continue;
-    //             }
-
-    //             if(allObjs[i] > allObjs[i-1]){
-    //                 console.log("WOAOAOAa");
-    //             }
-
-    //         }
-
-    //         console.log(allObjs);
-    //     }
-    // );
-
-
-
-    /**
-     * TODO
-     * Limit is ready to be set. Set per page after.
-     */
-
-    dbPromise.then(db => {
-        let i = 0;
-        return db.transaction('session')
-                .objectStore('session')
-                .iterateCursor(null, 'prev', cursor => {
-                    if (!cursor || i > 5) {return;}
-                    console.log('Cursored at:', cursor.value);
-                    console.log(i);
-                    i ++;
-                    console.log(cursor);
-                    cursor.continue();
-                });
-    }).then(function() {
-        console.log('Done cursoring');
     });
 
-
+    document.addEventListener("DOMContentLoaded", function() {
+        openPage(2).then( data => {
+            return updatePage(data)
+        }).then( html => {
+            // console.log(html);
+            $('.table-data').append(html);
+        });
+    });
 
     // Set an interval and call updatePage each seconds.
     // setInterval(function() {
@@ -73,13 +32,108 @@ const background = chrome.extension.getBackgroundPage();
     // }, 1000);
 }());
 
+function openPage(page) {
+    let start = (page * 50) - 50;
+    let end = (page * 50) - 1;
+
+    let startDate = 0;
+
+    return promise = new Promise(
+        function (resolve, reject) {
+            let data = [];
+            dbPromise.then(db => {
+                let i = 0;
+                let tx = db.transaction('session');
+                tx.objectStore('session')
+                        .iterateCursor(null, 'prev', cursor => {
+                            // Stop if cursor is empty or pass the end.
+                            if (!cursor || i > end) {return;}
+
+                            // Pass if cursor is before start
+                            if(i >= start){
+
+                                // Check if startdate of a data is different
+                                if(startDate !== cursor.value.id) {
+                                    startDate = cursor.value.id;
+                                    data.push({
+                                        sDate: cursor.value.id,
+                                        eDate: 0,
+                                        data: []
+                                    });
+                                }
+                                data[data.length-1].data.push(cursor.value);
+
+                                if(data[data.length-1].eDate < cursor.value.data.update){
+                                    data[data.length-1].eDate = cursor.value.data.update;
+                                }
+                            }
+                            i ++;
+                            cursor.continue();
+                        });
+
+                tx.complete.then(() => {
+                    if(data) {
+                        resolve(data);
+                    } else {
+                        reject(new Error('page data is empty'));
+                    }
+                });
+            });
+        }
+    );
+}
+
+function updatePage(datas){
+    let id = 0;
+    let html = '';
+
+    datas.forEach(sessions => {
+
+        sessions.data.forEach((data, i) => {
+
+            html += '<tr class=\'table-data-row\'>';
+
+            if(i === 0) {
+                let rowspan = sessions.data.length - 1;
+                html += '<td rowspan=\'' + rowspan + '\'>' + moment(sessions.sDate).format('ddd, Do MMM YYYY HH:mm') + '</td>';
+            }
+            if(i === sessions.data.length-1) {
+                html += '<td>' + moment(sessions.eDate).format('ddd, Do MMM YYYY HH:mm') + '</td>';
+            }
+
+            html += '<td>' + data.domain + '</td>';
+            html += '<td>' + data.data.transferred + '</td>';
+            html += '<td>' + data.data.cachedTransferred + '</td>';
+
+            let total = data.data.transferred + data.data.cachedTransferred;
+            html += '<td>' + total + '</td>';
+            html += '</tr>';
+        });
+    });
+
+
+    return promise = new Promise(
+        function (resolve, reject) {
+            if(html.length !== 0){
+                resolve(html);
+            } else {
+                reject(new Error('data is empty'));
+            }
+        }
+    );
+
+
+}
+
+
+
 
 /**
  * updatePage is a function that will update the popup page. updatePage will
  * accept boolean to check if it's the first call or not.
  * @param first {Boolean}
  */
-function updatePage(first){
+function updatePagex(first){
     // Get pages from background.js and with boolean to check first or not call.
     var pages = background.GetPages(first);
 
