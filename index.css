@@ -74,3 +74,9 @@ tr.table-line>td{
 .table-data-row [rowspan]{
     vertical-align: top;
 }
+
+.table-data-row:nth-of-type((n+3)*2){
+/* .table-data-row :nth-child(n+3) { */
+    /* text-align: right; */
+    color: red;
+}

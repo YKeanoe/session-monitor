@@ -87,28 +87,44 @@ function updatePage(datas){
     let id = 0;
     let html = '';
 
-    datas.forEach(sessions => {
+    datas.forEach((sessions, i) => {
+        let totalData = 0;
+        let totalCached = 0;
+        let totalTransferred = 0;
 
+        if(i == 0){
+            html += '<tr class=\'table-line\'><td colspan=\'100%\'></td></tr>';
+        }
         sessions.data.forEach((data, i) => {
-
             html += '<tr class=\'table-data-row\'>';
 
             if(i === 0) {
-                let rowspan = sessions.data.length - 1;
-                html += '<td rowspan=\'' + rowspan + '\'>' + moment(sessions.sDate).format('ddd, Do MMM YYYY HH:mm') + '</td>';
-            }
-            if(i === sessions.data.length-1) {
-                html += '<td>' + moment(sessions.eDate).format('ddd, Do MMM YYYY HH:mm') + '</td>';
+                // let rowspan = sessions.data.length - 1;
+                html += '<td rowspan=\'' + sessions.data.length + '\'>' + moment(sessions.sDate).format('ddd, Do MMM YYYY HH:mm') + '</td>';
             }
 
             html += '<td>' + data.domain + '</td>';
-            html += '<td>' + data.data.transferred + '</td>';
-            html += '<td>' + data.data.cachedTransferred + '</td>';
+            html += '<td>' + convertByteTable(data.data.transferred) + '</td>';
+            html += '<td>' + convertByteTable(data.data.cachedTransferred) + '</td>';
 
             let total = data.data.transferred + data.data.cachedTransferred;
-            html += '<td>' + total + '</td>';
+            html += '<td>' + convertByteTable(total) + '</td>';
             html += '</tr>';
+
+            totalData += total;
+            totalCached += data.data.cachedTransferred;
+            totalTransferred += data.data.transferred;
         });
+
+        let dur = sessions.eDate - sessions.sDate;
+        html += '<tr class=\'table-data-row\'><td colspan=\'2\'>Session length: ' + moment.duration(dur, 'milliseconds').format('h [hours] m [minutes]') + '</td>';
+        html += '<td>' + convertByteTable(totalTransferred) + '</td>';
+        html += '<td>' + convertByteTable(totalCached) + '</td>';
+        html += '<td>' + convertByteTable(totalData) + '</td></tr>';
+
+
+        html += '<tr class=\'table-line\'><td colspan=\'100%\'></td></tr>';
+
     });
 
 
@@ -117,7 +133,7 @@ function updatePage(datas){
             if(html.length !== 0){
                 resolve(html);
             } else {
-                reject(new Error('data is empty'));
+                reject(new Error('html is empty'));
             }
         }
     );
@@ -151,4 +167,8 @@ function updatePagex(first){
         updatePageChart(pages);
         chart.update();
     }
+}
+
+function convertByteTable(b){
+    return (b/1000000).toFixed(2) + " MB"
 }

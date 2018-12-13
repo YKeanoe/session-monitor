@@ -86,7 +86,7 @@ const ignoredMessage = [
     sessionMonitor.dbPromise = idb.open('session-monitor-db', 1, upgradeDB => {
         upgradeDB.createObjectStore('session', { keyPath: ['id', 'domain'] });
         upgradeDB.createObjectStore('watchSession', { keyPath: ['id', 'domain'] });
-    })
+    });
 
     // sessionMonitor.dbPromise.then(db => {
     //     const tx = db.transaction('session', 'readwrite');
@@ -173,7 +173,6 @@ chrome.webRequest.onResponseStarted.addListener(function(details) {
 },
 {urls: ["<all_urls>"]},
 ["responseHeaders"]);
-// =======
 
 
 /** ===================== Background.js Functions =========================== */
