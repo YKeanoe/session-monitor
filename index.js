@@ -17,14 +17,28 @@ let currentPage = 1;
         upgradeDB.createObjectStore('watchSession', { keyPath: ['id', 'domain'] });
     });
 
+    dbPromise.then(db => {
+        return db.transaction('session')
+            .objectStore('session').getAll();
+    }).then(
+        allObjs => console.log(allObjs)
+    );
+
     document.addEventListener("DOMContentLoaded", function() {
-        openPage(2).then( data => {
-            return updatePage(data)
+        openPage(1).then( data => {
+            return;
+            //  updatePage(data)
         }).then( html => {
             // console.log(html);
             $('.table-data').append(html);
+            return;
+        }).then(() => {
+            $('.top-group-data').on('click', function(e){
+                console.log($(this).attr('target'));
+            })
         });
     });
+
 
     // Set an interval and call updatePage each seconds.
     // setInterval(function() {
@@ -52,16 +66,24 @@ function openPage(page) {
                             // Pass if cursor is before start
                             if(i >= start){
 
-                                // Check if startdate of a data is different
+                                /**
+                                 * Check if startdate of a data is different.
+                                 * If it is different, means cursor is at a new
+                                 * session. it will create a new data object.
+                                 *  */
                                 if(startDate !== cursor.value.id) {
                                     startDate = cursor.value.id;
                                     data.push({
                                         sDate: cursor.value.id,
                                         eDate: 0,
+                                        cacheTotal: 0,
+                                        transferredTotal: 0,
                                         data: []
                                     });
                                 }
                                 data[data.length-1].data.push(cursor.value);
+                                data[data.length-1].cacheTotal += cursor.value.data.cachedTransferred;
+                                data[data.length-1].transferredTotal += cursor.value.data.transferred;
 
                                 if(data[data.length-1].eDate < cursor.value.data.update){
                                     data[data.length-1].eDate = cursor.value.data.update;
@@ -87,28 +109,37 @@ function updatePage(datas){
     let id = 0;
     let html = '';
 
-    datas.forEach((sessions, i) => {
+    datas.forEach( (sessions, i) => {
         let totalData = 0;
         let totalCached = 0;
         let totalTransferred = 0;
 
-        if(i == 0){
-            html += '<tr class=\'table-line\'><td colspan=\'100%\'></td></tr>';
-        }
-        sessions.data.forEach((data, i) => {
+        let groupIndex = i + 1;
+
+        html += '<tbody>';
+
+        sessions.data.forEach((data, j) => {
+            if(j === 0) {
+                html += '<tr class=\'table-data-row top-group-data\' target=\'group-' + groupIndex + '\'>';
+                html += '<td col-span=\'2\'>' + moment(sessions.sDate).format('ddd, Do MMM YYYY HH:mm') + '</td>';
+                html += '<td></td>';
+                html += '<td>' + convertByteTable(sessions.transferredTotal) + '</td>';
+                html += '<td>' + convertByteTable(sessions.cacheTotal) + '</td>';
+                html += '<td>' + convertByteTable((sessions.transferredTotal + sessions.cacheTotal)) + '</td>';
+                html += '</tr>';
+                html += '</tbody>';
+
+                html += '<tbody id=\'group-' + groupIndex + '\'>';
+            }
             html += '<tr class=\'table-data-row\'>';
 
-            if(i === 0) {
-                // let rowspan = sessions.data.length - 1;
-                html += '<td rowspan=\'' + sessions.data.length + '\'>' + moment(sessions.sDate).format('ddd, Do MMM YYYY HH:mm') + '</td>';
-            }
-
-            html += '<td>' + data.domain + '</td>';
-            html += '<td>' + convertByteTable(data.data.transferred) + '</td>';
-            html += '<td>' + convertByteTable(data.data.cachedTransferred) + '</td>';
+            html += '<td><div></div></td>';
+            html += '<td><div>' + data.domain + '</td>';
+            html += '<td><div>' + convertByteTable(data.data.transferred) + '</div></td>';
+            html += '<td><div>' + convertByteTable(data.data.cachedTransferred) + '</div></td>';
 
             let total = data.data.transferred + data.data.cachedTransferred;
-            html += '<td>' + convertByteTable(total) + '</td>';
+            html += '<td><div>' + convertByteTable(total) + '</div></td>';
             html += '</tr>';
 
             totalData += total;
@@ -124,6 +155,7 @@ function updatePage(datas){
 
 
         html += '<tr class=\'table-line\'><td colspan=\'100%\'></td></tr>';
+        html += '</tbody>';
 
     });
 
@@ -170,5 +202,5 @@ function updatePagex(first){
 }
 
 function convertByteTable(b){
-    return (b/1000000).toFixed(2) + " MB"
+    return (b/1000000).toFixed(3) + " MB"
 }
