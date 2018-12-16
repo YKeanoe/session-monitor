@@ -26,16 +26,15 @@ let currentPage = 1;
 
     document.addEventListener("DOMContentLoaded", function() {
         openPage(1).then( data => {
-            return;
-            //  updatePage(data)
+            return updatePage(data);
         }).then( html => {
             // console.log(html);
             $('.table-data').append(html);
             return;
         }).then(() => {
-            $('.top-group-data').on('click', function(e){
-                console.log($(this).attr('target'));
-            })
+            // $('.table-data-row.top-group-data').on('click', function(e){
+            //     $('#'+$(this).attr('target')).toggleClass('hide');
+            // })
         });
     });
 
@@ -115,47 +114,47 @@ function updatePage(datas){
         let totalTransferred = 0;
 
         let groupIndex = i + 1;
+        // <a class="btn btn-primary" data-toggle="collapse" href="#collapseExample" role="button" aria-expanded="false" aria-controls="collapseExample">
 
-        html += '<tbody>';
+        html += '<div class=\'table-data-row top-group-data\' data-toggle=\'collapse\' data-target=\'#group-' + groupIndex + '\' aria-control=\'group-' + groupIndex + '\' aria-expanded=\'false\'>';
+        html += '<div>' + moment(sessions.sDate).format('ddd, Do MMM YYYY HH:mm') + '</div>';
+        html += '<div>' + convertByteTable(sessions.transferredTotal) + '</div>';
+        html += '<div>' + convertByteTable(sessions.cacheTotal) + '</div>';
+        html += '<div>' + convertByteTable((sessions.transferredTotal + sessions.cacheTotal)) + '</div>';
+        html += '</div>';
+        html += '</div>';
 
-        sessions.data.forEach((data, j) => {
-            if(j === 0) {
-                html += '<tr class=\'table-data-row top-group-data\' target=\'group-' + groupIndex + '\'>';
-                html += '<td col-span=\'2\'>' + moment(sessions.sDate).format('ddd, Do MMM YYYY HH:mm') + '</td>';
-                html += '<td></td>';
-                html += '<td>' + convertByteTable(sessions.transferredTotal) + '</td>';
-                html += '<td>' + convertByteTable(sessions.cacheTotal) + '</td>';
-                html += '<td>' + convertByteTable((sessions.transferredTotal + sessions.cacheTotal)) + '</td>';
-                html += '</tr>';
-                html += '</tbody>';
+        html += '<div id=\'group-' + groupIndex + '\' class=\'table-data-group collapse\'>';
 
-                html += '<tbody id=\'group-' + groupIndex + '\'>';
-            }
-            html += '<tr class=\'table-data-row\'>';
+        sessions.data.forEach( data => {
+            html += '<div class=\'table-data-row\'>';
 
-            html += '<td><div></div></td>';
-            html += '<td><div>' + data.domain + '</td>';
-            html += '<td><div>' + convertByteTable(data.data.transferred) + '</div></td>';
-            html += '<td><div>' + convertByteTable(data.data.cachedTransferred) + '</div></td>';
+            html += '<div></div>'
+            html += '<div>' + data.domain + '</div>';
+            html += '<div>' + convertByteTable(data.data.transferred) + '</div>';
+            html += '<div>' + convertByteTable(data.data.cachedTransferred) + '</div>';
 
             let total = data.data.transferred + data.data.cachedTransferred;
-            html += '<td><div>' + convertByteTable(total) + '</div></td>';
-            html += '</tr>';
+            html += '<div>' + convertByteTable(total) + '</div>';
+            html += '</div>';
 
             totalData += total;
             totalCached += data.data.cachedTransferred;
             totalTransferred += data.data.transferred;
         });
 
+
         let dur = sessions.eDate - sessions.sDate;
-        html += '<tr class=\'table-data-row\'><td colspan=\'2\'>Session length: ' + moment.duration(dur, 'milliseconds').format('h [hours] m [minutes]') + '</td>';
-        html += '<td>' + convertByteTable(totalTransferred) + '</td>';
-        html += '<td>' + convertByteTable(totalCached) + '</td>';
-        html += '<td>' + convertByteTable(totalData) + '</td></tr>';
 
 
-        html += '<tr class=\'table-line\'><td colspan=\'100%\'></td></tr>';
-        html += '</tbody>';
+        html += '<div class=\'table-data-row bottom-group-data\'>';
+        html += '<div>Session length: ' + moment.duration(dur, 'milliseconds').format('h [hours] m [minutes]') + '</div>';
+        html += '<div>' + convertByteTable(totalTransferred) + '</div>';
+        html += '<div>' + convertByteTable(totalCached) + '</div>';
+        html += '<div>' + convertByteTable(totalData) + '</div>';
+
+        html += '</div>';
+        html += '</div>';
 
     });
 

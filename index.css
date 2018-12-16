@@ -58,61 +58,41 @@ body{
 .table-data{
     width: 100%;
     display: flex;
+    flex-direction: column;
+}
+
+.table-data-row{
+    display: flex;
+    height: 2em;
+}
+
+.collapsing{
+    transition: height 1s ease-in-out;
 }
 
 .table-header{
     display: flex;
-    flex: 100% 1 0;
-    font-weight: bold;
-}
-
-.col-1{
-    flex: 40% 1 0;
-}
-.col-2{
-    flex: 30% 1 0;
-}
-.col-3{
-    flex: 10% 1 0;
-}
-.col-4{
-    flex: 10% 1 0;
-}
-.col-5{
-    flex: 10% 1 0;
-}
-
-
-
-
-
-
-tr{
     height: 2em;
+    font-weight: bold;
+    font-size: 1.1em;
 }
 
-tr.table-line{
-    height: 0;
-}
+.table-header :nth-child(1), .table-data-row :nth-child(1){display: flex; flex: 1 0 40%;}
+.table-header :nth-child(2), .table-data-row :nth-child(2){display: flex; flex: 1 0 30%;}
+.table-header :nth-child(3), .table-data-row :nth-child(3){display: flex; flex: 1 0 10%;}
+.table-header :nth-child(4), .table-data-row :nth-child(4){display: flex; flex: 1 0 10%;}
+.table-header :nth-child(5), .table-data-row :nth-child(5){display: flex; flex: 1 0 10%;}
 
-tr.table-line>td{
-    border-bottom: 1px solid black;
-}
-
-
-.table-data-row [rowspan]{
-    vertical-align: top;
-}
+.table-data-row.top-group-data :nth-child(1), .table-data-row.bottom-group-data :nth-child(1) {flex: 1 0 70%;}
+.table-data-row.top-group-data :nth-child(2), .table-data-row.bottom-group-data :nth-child(2) {flex: 1 0 10%;}
+.table-data-row.top-group-data :nth-child(3), .table-data-row.bottom-group-data :nth-child(3) {flex: 1 0 10%;}
+.table-data-row.top-group-data :nth-child(4), .table-data-row.bottom-group-data :nth-child(4){flex: 1 0 10%;}
 
 .table-header :nth-child(n+3),
-.table-data-row.top-group-data :nth-child(n+3),
-.table-data-row:not(.top-group-data):nth-last-of-type(2) :nth-child(n+2),
-.table-data-row:not(.top-group-data) :nth-child(n+3) {
-    text-align: right;
-}
-
-.table-header{
-    text-align: left;
+.table-data-row.top-group-data :nth-child(n+2),
+.table-data-row.bottom-group-data :nth-child(n+2),
+.table-data-row :nth-child(n+3) {
+    flex-direction: row-reverse;
 }
 
 .top-group-data:hover{
@@ -120,7 +100,6 @@ tr.table-line>td{
     cursor: pointer;
 }
 
-#group-1 div{
+.hide{
     height: 0;
-    overflow: hidden;
 }
