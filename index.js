@@ -1,16 +1,14 @@
 const background = chrome.extension.getBackgroundPage();
 let dbPromise = null;
 let currentPage = 1;
-
+let pageData = null;
 
 (function() {
 
-
     // TODO
     // Fix the date format in the table. it seems wrong.
-
-    console.log((new Date).getTime());
-    console.log(moment(1544544506507).format('ddd, Do MMM YYYY HH:mm'));
+    // console.log((new Date).getTime());
+    // console.log(moment(1544544506507).format('ddd, Do MMM YYYY HH:mm'));
 
     dbPromise = idb.open('session-monitor-db', 1, upgradeDB => {
         upgradeDB.createObjectStore('session', { keyPath: ['id', 'domain'] });
@@ -35,9 +33,12 @@ let currentPage = 1;
             // $('.table-data-row.top-group-data').on('click', function(e){
             //     $('#'+$(this).attr('target')).toggleClass('hide');
             // })
+
+            $('.date-sort > span, .domain-sort > span, .transfer-sort > span, .cache-sort > span, .total-sort > span').on('click', function(e){
+                sort($(this).parent().attr('class'), $(this));
+            })
         });
     });
-
 
     // Set an interval and call updatePage each seconds.
     // setInterval(function() {
@@ -47,7 +48,7 @@ let currentPage = 1;
 
 function openPage(page) {
     let start = (page * 50) - 50;
-    let end = (page * 50) - 1;
+    let end = (page * 50000) - 1;
 
     let startDate = 0;
 
@@ -94,6 +95,7 @@ function openPage(page) {
 
                 tx.complete.then(() => {
                     if(data) {
+                        pageData = data;
                         resolve(data);
                     } else {
                         reject(new Error('page data is empty'));
@@ -102,6 +104,46 @@ function openPage(page) {
             });
         }
     );
+}
+
+function sortPage(type, dir){
+    switch(type) {
+        case 'date-sort':
+            pageData.sort(function(a,b) {
+                return (dir === 'asc') ? a.sDate - b.sDate : b.sDate - a.sDate;
+            });
+            break;
+        case 'domain-sort':
+            pageData.forEach( value => {
+                value.data.sort(function(a,b) {
+
+                    if (a.last_nom < b.last_nom) {
+                        return -1;
+                    } else if (a.last_nom > b.last_nom){
+                        return 1;
+                    } else {
+                        return 0;
+                    }
+                });
+            });
+            break;
+        case 'transfer-sort':
+            pageData.sort(function(a,b) {
+                return b.transferredTotal - a.transferredTotal;
+            });
+            break;
+        case 'cache-sort':
+            pageData.sort(function(a,b) {
+                return b.cacheTotal - a.cacheTotal;
+            });
+            break;
+        case 'total-sort':
+            pageData.sort(function(a,b) {
+                return (b.transferredTotal + b.cacheTotal) - (a.transferredTotal + a.cacheTotal);
+            });
+            break;
+
+    }
 }
 
 function updatePage(datas){
@@ -117,7 +159,7 @@ function updatePage(datas){
         // <a class="btn btn-primary" data-toggle="collapse" href="#collapseExample" role="button" aria-expanded="false" aria-controls="collapseExample">
 
         html += '<div class=\'table-data-row top-group-data\' data-toggle=\'collapse\' data-target=\'#group-' + groupIndex + '\' aria-control=\'group-' + groupIndex + '\' aria-expanded=\'false\'>';
-        html += '<div>' + moment(sessions.sDate).format('ddd, Do MMM YYYY HH:mm') + '</div>';
+        html += '<div>' + moment(sessions.sDate).format('dddd, Do MMM YYYY HH:mm') + '</div>';
         html += '<div>' + convertByteTable(sessions.transferredTotal) + '</div>';
         html += '<div>' + convertByteTable(sessions.cacheTotal) + '</div>';
         html += '<div>' + convertByteTable((sessions.transferredTotal + sessions.cacheTotal)) + '</div>';
@@ -125,6 +167,7 @@ function updatePage(datas){
         html += '</div>';
 
         html += '<div id=\'group-' + groupIndex + '\' class=\'table-data-group collapse\'>';
+        html += '<div class=\'table-break\'></div>'
 
         sessions.data.forEach( data => {
             html += '<div class=\'table-data-row\'>';
@@ -155,6 +198,7 @@ function updatePage(datas){
 
         html += '</div>';
         html += '</div>';
+        html += '<div class=\'table-break\'></div>'
 
     });
 
@@ -201,5 +245,34 @@ function updatePagex(first){
 }
 
 function convertByteTable(b){
-    return (b/1000000).toFixed(3) + " MB"
+    return ((Math.ceil((b/1000000)*1000))/1000).toFixed(3) + " MB"
+    // return (b/1000000).toFixed(3) + " MB"
+}
+// return Math.round(b/1000000) + " MB"
+
+function sort(type, button){
+    let dir = '';
+    $('.table-data > div:gt(1)').remove();
+
+    if(button.hasClass('fa-sort-up')) {
+        dir = 'desc';
+        button.removeClass('fa-sort-up');
+        button.addClass('fa-sort-down');
+    } else if(button.hasClass('fa-sort-down')) {
+        dir = 'asc';
+        button.removeClass('fa-sort-down');
+        button.addClass('fa-sort-up');
+    } else {
+        dir = 'asc';
+        $('.table-header > div > span').removeClass('fa-sort fa-sort-up fa-sort-down');
+        $('.table-header > div:not(' + type + ') > span').addClass('fa-sort');
+        button.addClass('fa-sort-down');
+    }
+
+    sortPage(type, dir);
+
+    updatePage(pageData).then(function(v){
+        $('.table-data').append(v);
+        console.log("success");
+    });
 }
