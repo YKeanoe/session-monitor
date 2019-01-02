@@ -5,12 +5,13 @@ let lastSession = 0;
 let pageData = [];
 
 // TODO
-// Seems like the amount of data in indexed db is different than what grabbed.
+// Find a way to grab both session and stopwatch.
+// how main page work: grab 20 from session, grab 20 from  stopwatch, remove the oldest till its 20 item only, save the index of both stores.
 
 (function() {
     dbPromise = idb.open('session-monitor-db', 1, upgradeDB => {
         upgradeDB.createObjectStore('session', { keyPath: ['id', 'domain'] });
-        upgradeDB.createObjectStore('watchSession', { keyPath: ['id', 'domain'] });
+        upgradeDB.createObjectStore('stopwatch', { keyPath: ['id', 'domain'] });
     });
 
     dbPromise.then(db => {
@@ -179,7 +180,14 @@ function updatePage(datas){
         // <a class="btn btn-primary" data-toggle="collapse" href="#collapseExample" role="button" aria-expanded="false" aria-controls="collapseExample">
 
         html += '<div class=\'table-data-row top-group-data\' data-toggle=\'collapse\' data-target=\'#group-' + groupIndex + '\' aria-control=\'group-' + groupIndex + '\' aria-expanded=\'false\'>';
-        html += '<div>' + i + ' | ' + moment(sessions.sDate).format('dddd, Do MMM YYYY HH:mm') + '</div>';
+
+        if(i % 2 === 0){
+            html += '<div>Session</div>';
+        }else{
+            html += '<div>Stopwatch</div>';
+        }
+
+        html += '<div>' + moment(sessions.sDate).format('ddd, Do MMM YYYY HH:mm') + '</div>';
         html += '<div>' + convertByteTable(sessions.transferredTotal) + '</div>';
         html += '<div>' + convertByteTable(sessions.cacheTotal) + '</div>';
         html += '<div>' + convertByteTable((sessions.transferredTotal + sessions.cacheTotal)) + '</div>';
@@ -192,6 +200,7 @@ function updatePage(datas){
         sessions.data.forEach( data => {
             html += '<div class=\'table-data-row\'>';
 
+            html += '<div></div>'
             html += '<div></div>'
             html += '<div>' + data.domain + '</div>';
             html += '<div>' + convertByteTable(data.data.transferred) + '</div>';
@@ -265,8 +274,8 @@ function updatePagex(first){
 }
 
 function convertByteTable(b){
-    return (((Math.ceil((b/1000000)*1000))/1000).toFixed(3)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",") + " MB"
-    // return (b/1000000).toFixed(3) + " MB"
+    // return (((Math.ceil((b/1000000)*1000))/1000).toFixed(3)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",") + " MB"
+    return (b/1000000).toFixed(2).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",") + " MB"
 }
 // return Math.round(b/1000000) + " MB"
 

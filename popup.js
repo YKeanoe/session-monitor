@@ -101,6 +101,10 @@ document.addEventListener('DOMContentLoaded', function() {
         background.openMainPage();
     });
 
+    $('.btnStopwatch').on('click', function(){
+        background.toggleStopwatch();
+    });
+
     // Call updatePage the first time.
     updatePage(true);
 

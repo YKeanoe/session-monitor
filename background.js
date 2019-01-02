@@ -46,6 +46,10 @@ let sessionMonitor = {
      */
     stopwatch: 0,
     /**
+     * isStopwatch is a boolean used to tell if the stopwatch is running
+     */
+    isStopwatch: false,
+    /**
      * dbPromise is an indexedDB promise object.
      */
     dbPromise: null,
@@ -85,7 +89,7 @@ const ignoredMessage = [
 
     sessionMonitor.dbPromise = idb.open('session-monitor-db', 1, upgradeDB => {
         upgradeDB.createObjectStore('session', { keyPath: ['id', 'domain'] });
-        upgradeDB.createObjectStore('watchSession', { keyPath: ['id', 'domain'] });
+        upgradeDB.createObjectStore('stopwatch', { keyPath: ['id', 'domain'] });
     });
 
     // sessionMonitor.dbPromise.then(db => {
@@ -123,8 +127,6 @@ const ignoredMessage = [
     //     return tx.complete;
     // });
 
-
-
     // sessionMonitor.dbPromise.then(db => {
     //     return db.transaction('session')
     //         .objectStore('session').getAll();
@@ -132,6 +134,12 @@ const ignoredMessage = [
     //     allObjs => console.log(allObjs)
     // );
 
+    // sessionMonitor.dbPromise.then(db => {
+    //     return db.transaction('stopwatch')
+    //         .objectStore('stopwatch').getAll();
+    // }).then(
+    //     allObjs => console.log(allObjs)
+    // );
     // idb.delete('session-monitor-db');
 
     console.log("Start session monitor");
@@ -155,32 +163,7 @@ chrome.tabs.onUpdated.addListener(function(tabId, changeInfo, tab){
     }
 });
 
-chrome.windows.onRemoved.addListener(function() {
-})
-
-
-chrome.webRequest.onHeadersReceived.addListener(function(details) {
-},
-{urls: ["<all_urls>"]},
-["blocking"]);
-
-chrome.webRequest.onBeforeRequest.addListener(function(details) {
-},
-{urls: ["<all_urls>"]},
-["blocking"]);
-
-chrome.webRequest.onResponseStarted.addListener(function(details) {
-},
-{urls: ["<all_urls>"]},
-["responseHeaders"]);
-
-
 /** ===================== Background.js Functions =========================== */
-
-/**
- * Some network transfer might be lost due to debugger attached after network
- * request.
- */
 
 /**
  * Called to attach all tabs with a debugger. The function will query all
@@ -364,7 +347,10 @@ function storeItem(item) {
         return e.domain === item.page;
     });
 
+    // If targetPage is found, apply calculation to targetPage object.
     if(targetPage) {
+
+        // Check if the data is a cache
         if(item.cache) {
             targetPage.cachedTransferred += item.dataLength;
         } else {
@@ -372,22 +358,18 @@ function storeItem(item) {
         }
 
         // Check if page last update is more than 5 seconds ago
-        if((new Date).getTime() - targetPage.update >= 5000){
+        if((new Date).getTime() - targetPage.update >= 2000){
             update = true;
         }
 
         // Update the update timer
         targetPage.update = (new Date).getTime();
+    }
+    // If targetPage is not found, create a new page object to be calculated.
+    else {
+        // Send an error to console.
+        if(item.page === '') {console.error("Page item domain is empty.", item);}
 
-    } else {
-        // console.warn("Page not found for " + item.page);
-        if(item.page === '') {
-            console.error("Page item is empty?!?!");
-            console.log(item);
-            console.log(item.page);
-        }
-
-        // console.log("Push new page " + item.page);
         let newPage = {
             domain: item.page,
             transferred: (item.cache) ? 0 : item.dataLength,
@@ -404,7 +386,7 @@ function storeItem(item) {
     sessionMonitor.changes = true;
 
     // Update indexedDB if update boolean is true.
-    if(update) updateSessionStorage(targetPage);
+    if(update) updateStorage(targetPage);
 
     // console.log('%c Item ID ' + item.requestId + ' stored.', 'color: green;');
     // console.log(pages);
@@ -457,14 +439,17 @@ function defineItem(item, debugeeId){
     });
 }
 
+function updateStorage(page){
+    updateSessionStorage(page);
+    if(sessionMonitor.isStopwatch) updateStopwatchStorage(page);
+}
+
 /**
  * updateSessionStorage is a function that will save the pages data into
  * indexedDB.
  * @param page {Page Object}
  */
 function updateSessionStorage(page){
-    console.log('Saving page session');
-
     sessionMonitor.dbPromise.then(db => {
         const tx = db.transaction('session', 'readwrite');
         tx.objectStore('session').put({
@@ -479,6 +464,29 @@ function updateSessionStorage(page){
         return tx.complete;
     });
 }
+
+/**
+ * updateSessionStorage is a function that will save the pages data into
+ * indexedDB.
+ * @param page {Page Object}
+ */
+function updateStopwatchStorage(page){
+    sessionMonitor.dbPromise.then(db => {
+        const tx = db.transaction('stopwatch', 'readwrite');
+        tx.objectStore('stopwatch').put({
+            id: sessionMonitor.stopwatch,
+            domain: page.domain,
+            data: {
+                transferred: page.transferred,
+                cachedTransferred: page.cachedTransferred,
+                update: (new Date).getTime()
+            }
+        });
+        return tx.complete;
+    });
+}
+
+
 
 function extractHostname(url) {
     var hostname;
@@ -545,6 +553,17 @@ function openMainPage(){
             }
         }
     );
+}
+
+function toggleStopwatch(){
+    // sessionMonitor.isStopwatch = !sessionMonitor.isStopwatch;
+    if(sessionMonitor.isStopwatch){
+        sessionMonitor.isStopwatch = false;
+        sessionMonitor.stopwatch = 0;
+    } else {
+        sessionMonitor.isStopwatch = true;
+        sessionMonitor.stopwatch = (new Date).getTime();
+    }
 }
 
 // function isChanged(){

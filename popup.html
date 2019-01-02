@@ -26,32 +26,39 @@
         <Button class="btnPage">
             Main page
         </Button>
+        <Button class="btnStopwatch">
+            Stopwatch
+        </Button>
 
 
         <br/>
-        <div class="timer">
-            <div class="timer-title">
-                Session timer
+
+        <div class='page'>
+
+            <div class="timer">
+                <div class="timer-title">
+                    Session timer
+                </div>
+                <div class="timer-time">
+                    <span id="session-timer"></span>
+                </div>
             </div>
-            <div class="timer-time">
-                <span id="session-timer"></span>
-            </div>
+
+            <br/>
+
+            <canvas id="myChart"></canvas>
+
+            <table id="session-table">
+                <tbody id="session-files">
+                    <tr>
+                        <th>Page</th>
+                        <th>Transferred</th>
+                        <th>Cached</th>
+                    </tr>
+                </tbody>
+            </table>
+
         </div>
-
-        <br/>
-
-        <canvas id="myChart"></canvas>
-
-        <table id="session-table">
-            <tbody id="session-files">
-                <tr>
-                    <th>Page</th>
-                    <th>Transferred</th>
-                    <th>Cached</th>
-                </tr>
-            </tbody>
-        </table>
-
         <br/>
 
         Show details, hide debugger tab
