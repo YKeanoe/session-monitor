@@ -1,12 +1,12 @@
 const background = chrome.extension.getBackgroundPage();
 let dbPromise = null;
-let currentPage = 1;
 let lastSession = 0;
+let lastStopwatch = 0;
 let pageData = [];
+let currentPage = 'main'; // currentPage allows 3 page: main / session / stopwatch
 
 // TODO
-// Find a way to grab both session and stopwatch.
-// how main page work: grab 20 from session, grab 20 from  stopwatch, remove the oldest till its 20 item only, save the index of both stores.
+// Fix feature to switch pages between main, session, and stopwatch
 
 (function() {
     dbPromise = idb.open('session-monitor-db', 1, upgradeDB => {
@@ -14,22 +14,19 @@ let pageData = [];
         upgradeDB.createObjectStore('stopwatch', { keyPath: ['id', 'domain'] });
     });
 
-    dbPromise.then(db => {
-        return db.transaction('session')
-            .objectStore('session').getAll();
-    }).then(
-        allObjs => console.log(allObjs)
-    );
-
     document.addEventListener("DOMContentLoaded", function() {
-        loadPage(1);
+        loadSessionPage(true);
         $(window).on('scroll', function(){
             if($(window).scrollTop() + $(window).height() >= $(document).height()) {
-                loadPage(currentPage);
-                // console.log(pageData);
-                // console.log(pageData);
+                loadSessionPage(false);
             }
         })
+        $('#stopwatch-btn, #session-btn, #main-btn').on('click', function(){
+            $(this).addClass('active');
+            $('#' + currentPage + '-btn').removeClass('active');
+            currentPage = $(this).attr('id').split('-')[0];
+
+        });
     });
 
     // Set an interval and call updatePage each seconds.
@@ -38,26 +35,77 @@ let pageData = [];
     // }, 1000);
 }());
 
-function loadPage(page){
+function loadMainPage(firstLoad){
+    if(firstLoad){
+        lastSession = 0;
+        lastStopwatch = 0;
+    }
+    let mainData = [];
     // Using promises, the data from database is loaded step by step.
-    openPage(page).then( data => {
-        return cleanData(data);
+    openDatabase('session').then( sessionData => {
+        // Get session data and put into mainData then open stopwatch database
+        mainData = sessionData;
+        return openDatabase('stopwatch');
+    }).then( stopwatchData => {
+        // Get stopwatch data and put into mainData and clean the data grabbed
+        mainData = mainData.concat(stopwatchData);
+        return cleanData(mainData, 'main');
     }).then( data => {
-        return updatePage(data);
+        // Use the cleaned data to make html
+        return getHTMLFromData(data);
     }).then( html => {
         $('.table-data').append(html);
-        currentPage++;
         return;
     }).catch( (e) => {
         console.warn(e);
     });
 }
 
-function openPage(page) {
-    let start =  lastSession;
+function loadSessionPage(firstLoad){
+    if(firstLoad){
+        lastSession = 0;
+        lastStopwatch = 0;
+    }
+    // Using promises, the data from database is loaded step by step.
+    openDatabase('session').then( sessionData => {
+        // Get session data and put into mainData then open stopwatch database
+        return cleanData(sessionData, 'session');
+    }).then( data => {
+        // Use the cleaned data to make html
+        return getHTMLFromData(data);
+    }).then( html => {
+        $('.table-data').append(html);
+        return;
+    }).catch( (e) => {
+        console.warn(e);
+    });
+}
+
+function loadStopwatchPage(firstLoad){
+    if(firstLoad){
+        lastSession = 0;
+        lastStopwatch = 0;
+    }
+    // Using promises, the data from database is loaded step by step.
+    openDatabase('stopwatch').then( sessionData => {
+        // Get session data and put into mainData then open stopwatch database
+        return cleanData(sessionData, 'stopwatch');
+    }).then( data => {
+        // Use the cleaned data to make html
+        return getHTMLFromData(data);
+    }).then( html => {
+        $('.table-data').append(html);
+        return;
+    }).catch( (e) => {
+        console.warn(e);
+    });
+}
+
+function openDatabase(type) {
+    let start = (type === 'session') ? lastSession : lastStopwatch;
     let end = start + 19;
 
-    console.log(start + ' - ' + end);
+    // console.log(start + ' - ' + end);
 
     return promise = new Promise(
         function (resolve, reject) {
@@ -68,18 +116,25 @@ function openPage(page) {
             dbPromise.then(db => {
                 let i = 0;
                 let firstFound = false;
-                let tx = db.transaction('session');
+                let tx = db.transaction(type);
 
-                tx.objectStore('session')
+                tx.objectStore(type)
                     .iterateCursor(null, 'prev', cursor => {
-                        // Stop if cursor is empty or pass the end.
+                        /**
+                         * Stop if cursor is empty or pass the end.
+                         * If cursor is stopped, set the last session or
+                         * stopwatch to i+1 (which would be the latest index).
+                         **/
                         if (!cursor || i > end) {
-                            lastSession = i;
-                            lastSession++;
+                            if(type === 'session') {
+                                lastSession = i;
+                                lastSession++;
+                            } else {
+                                lastStopwatch = i;
+                                lastStopwatch++;
+                            }
                             return;
                         }
-
-
 
                         /**
                          * Check if startdate of a data is different.
@@ -88,7 +143,6 @@ function openPage(page) {
                          * firstFound to true and increment.
                          *  */
                         if(startDate !== cursor.value.id) {
-                            // console.log('session ' + i);
                             startDate = cursor.value.id;
                             firstFound = true;
                             i++;
@@ -103,8 +157,8 @@ function openPage(page) {
                              * into the data array.
                              */
                             if(firstFound) {
-                                // console.log('adding');
                                 data.push({
+                                    type: type,
                                     sDate: cursor.value.id,
                                     eDate: 0,
                                     cacheTotal: 0,
@@ -121,22 +175,15 @@ function openPage(page) {
                                 data[data.length-1].eDate = cursor.value.data.update;
                             }
                         }
-
                         cursor.continue();
                     });
 
                 tx.complete.then(() => {
                     if(data.length > 0) {
                         pageData = pageData.concat(data);
-                        console.log(pageData);
-                        let amt = 0;
-                        pageData.forEach(val => {
-                            amt += val.data.length;
-                        });
-                        console.log(amt);
                         resolve(data);
                     } else {
-                        reject(new Error('page data is empty'));
+                        resolve([]);
                     }
                 });
             });
@@ -144,13 +191,20 @@ function openPage(page) {
     );
 }
 
-function cleanData(data){
+/**
+ * cleanData is a function that will sort the datas in each session/stopwatch
+ * in alphabetical order. If it is the main page, clean data will sort all
+ * datas by date and remove excess data (max 20 per load).
+ * @param {Object} data
+ * @param {String} type
+ */
+function cleanData(data, type) {
     data.forEach( value => {
         value.data.sort(function(a,b) {
-            if (a.domain === b.domain){
+            if (a.domain === b.domain) {
                 return 0;
             } else {
-                if(a.domain < b.domain){
+                if(a.domain < b.domain) {
                     return -1;
                 } else {
                     return 1;
@@ -159,16 +213,31 @@ function cleanData(data){
         });
     });
 
+    if(type === 'main') {
+        data.sort(function(a,b) {
+            return b.sDate - a.sDate;
+        });
+
+        if (data.length > 20){
+            for(i=20; i<data.length; i++){
+                if(data[i].type === 'session') {
+                    lastSession--;
+                } else {
+                    lastStopwatch--;
+                }
+            }
+            data = data.slice(0, 20);
+        }
+    }
+
     return promise = new Promise(
         function (resolve, reject) {
             resolve(data);
         }
     );
-
 }
 
-function updatePage(datas){
-    let id = 0;
+function getHTMLFromData(datas){
     let html = '';
 
     datas.forEach( (sessions, i) => {
@@ -177,16 +246,10 @@ function updatePage(datas){
         let totalTransferred = 0;
 
         let groupIndex = i + 1;
-        // <a class="btn btn-primary" data-toggle="collapse" href="#collapseExample" role="button" aria-expanded="false" aria-controls="collapseExample">
 
         html += '<div class=\'table-data-row top-group-data\' data-toggle=\'collapse\' data-target=\'#group-' + groupIndex + '\' aria-control=\'group-' + groupIndex + '\' aria-expanded=\'false\'>';
 
-        if(i % 2 === 0){
-            html += '<div>Session</div>';
-        }else{
-            html += '<div>Stopwatch</div>';
-        }
-
+        html += '<div>' + sessions.type.charAt(0).toUpperCase() + sessions.type.slice(1) + '</div>';
         html += '<div>' + moment(sessions.sDate).format('ddd, Do MMM YYYY HH:mm') + '</div>';
         html += '<div>' + convertByteTable(sessions.transferredTotal) + '</div>';
         html += '<div>' + convertByteTable(sessions.cacheTotal) + '</div>';
@@ -220,7 +283,13 @@ function updatePage(datas){
 
 
         html += '<div class=\'table-data-row bottom-group-data\'>';
-        html += '<div>Session length: ' + moment.duration(dur, 'milliseconds').format('h [hours] m [minutes]') + '</div>';
+
+        if(sessions.type === 'session'){
+            html += '<div>Session length: ' + moment.duration(dur, 'milliseconds').format('h [hours] m [minutes]') + '</div>';
+        } else {
+            html += '<div>Stopwatch length: ' + moment.duration(dur, 'milliseconds').format('h [hours] m [minutes]') + '</div>';
+        }
+
         html += '<div>' + convertByteTable(totalTransferred) + '</div>';
         html += '<div>' + convertByteTable(totalCached) + '</div>';
         html += '<div>' + convertByteTable(totalData) + '</div>';
@@ -241,8 +310,6 @@ function updatePage(datas){
             }
         }
     );
-
-
 }
 
 
