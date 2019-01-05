@@ -18,6 +18,11 @@ let sessionMonitor = {
      */
     pages: [],
     /**
+     * stopwatchPages is just like pages but for stopwatch. The pages for
+     * session and stopwatch are separated.
+     */
+    stopwatchPages: [],
+    /**
      * items is an array of object that stores the request's domain name and the amount of
      * data transferred for it.
      * schame example: {
@@ -25,7 +30,8 @@ let sessionMonitor = {
      * request: 'www.youtube.com/watch?12asd1', // request url
      * requestId: '1019331.10', // request id
      * cache: false, // transferred through cache or not
-     * dataLength: 1024 // total data transferred
+     * dataLength: 1024, // total data transferred
+     * updated: 1087218312 // last updated
      * }
      */
     items: [],
@@ -35,11 +41,6 @@ let sessionMonitor = {
      * pages.
      */
     changes: false,
-    /**
-     * timer is an integer used to store how much time has passed since the
-     * monitor started.
-     */
-    timer: 0,
     /**
      * stopwatch is an integer used to store how much time has passed since
      * the stopwatch has started.
@@ -59,10 +60,6 @@ let sessionMonitor = {
     id: 0
 }
 
-// var pages = [];
-// var items = [];
-// var changes = false;
-
 /**
  * ignoredMessage is used to filter unused message. It's likely better to just
  * filter usedMessage instead but I'm not sure which message should be included.
@@ -78,61 +75,17 @@ const ignoredMessage = [
     'Network.webSocketClosed'
 ];
 
-// var timer;
-
 /** ============================== Logic ==================================== */
 
-
+/**
+ * On start logic. The session monitor will open the indexedDB for use. It will
+ * the make a new ID using unixtime and it will attach all debugger to all tabs.
+ */
 (function(){
-
-    // TODO FIGURE OUT INDEXEDDB
-
     sessionMonitor.dbPromise = idb.open('session-monitor-db', 1, upgradeDB => {
         upgradeDB.createObjectStore('session', { keyPath: ['id', 'domain'] });
         upgradeDB.createObjectStore('stopwatch', { keyPath: ['id', 'domain'] });
     });
-
-    // sessionMonitor.dbPromise.then(db => {
-    //     const tx = db.transaction('session', 'readwrite');
-    //     tx.objectStore('session').put({
-    //         id: 123456,
-    //         data: {
-    //             domain: 'www.youtube.com',
-    //             transferred: 10,
-    //             cachedTransferred: 4000,
-    //             update: 1541582906,
-    //             timer: 0
-    //         }
-    //     });
-    //     return tx.complete;
-    // });
-
-    // sessionMonitor.dbPromise.then(db => {
-    //     const tx = db.transaction('session', 'readwrite');
-    //     tx.objectStore('session').put({
-    //         id: 123456,
-    //         data: {
-    //             pages: [
-    //                 {
-    //                     domain: 'www.youtube.com',
-    //                     transferred: 3333,
-    //                     cachedTransferred: 4000,
-    //                     update: 1541582906,
-    //                     timer: 0
-    //                 }
-    //             ]
-    //         }
-
-    //     });
-    //     return tx.complete;
-    // });
-
-    // sessionMonitor.dbPromise.then(db => {
-    //     return db.transaction('session')
-    //         .objectStore('session').getAll();
-    // }).then(
-    //     allObjs => console.log(allObjs)
-    // );
 
     // sessionMonitor.dbPromise.then(db => {
     //     return db.transaction('stopwatch')
@@ -143,23 +96,28 @@ const ignoredMessage = [
     // idb.delete('session-monitor-db');
 
     console.log("Start session monitor");
-    sessionMonitor.timer = (new Date).getTime();
     sessionMonitor.id = (new Date).getTime();
     attachAllDebugger();
 }());
 
-
-
 /**
  * Listen to tab update and attach it to a debugger when updated. it will check
  * if the url of the tab is updated and check & attach a debugger to it.
- * @param tabId {String}
- * @param changeInfo {Object}
- * @param tab {Tab Object}
+ * OnUpdate will also check for old unstored items and remove them if it has been
+ * 5 minute old.
+ * @param {String} tabId
+ * @param {Object} changeInfo
+ * @param {Tab Object} tab
  */
 chrome.tabs.onUpdated.addListener(function(tabId, changeInfo, tab){
-    if(changeInfo.url) {
-        checkAndAttachDebugger(tab);
+    if(changeInfo.url) checkAndAttachDebugger(tab);
+
+    if(sessionMonitor.items.length > 0){
+        sessionMonitor.items.forEach((item, i, items) => {
+            if((new Date).getTime() - item.updated >= 300000) {
+                items.splice(i, 1);
+            }
+        });
     }
 });
 
@@ -176,7 +134,6 @@ function attachAllDebugger(){
             checkAndAttachDebugger(v);
         });
     });
-
     chrome.debugger.onEvent.addListener(onEvent);
 }
 
@@ -192,7 +149,7 @@ function listDebugger(){
 /**
  * isNormalUrl is a function to check if the url of a tab is normal url or
  * chrome's url.
- * @param tab {Tab Object}
+ * @param {Tab Object} tab
  * @return {Boolean}
  */
 function isNormalUrl(tab) {
@@ -208,7 +165,7 @@ function isNormalUrl(tab) {
  * checkAndAttachDebugger is a function that will check if the tab is a normal
  * url or already attached to a debugger. It will then call AttachDebugger if
  * there is no problem.
- * @param tab {Tab Object}
+ * @param {Tab Object} tab
  */
 function checkAndAttachDebugger(tab) {
     if(!isNormalUrl(tab)) return;
@@ -229,7 +186,7 @@ function checkAndAttachDebugger(tab) {
 /**
  * Attach a debugger to a tab and enable network tracking. When AttachDebugger
  * is called, the function will also add page object to the pages array.
- * @param tab {Tab Object}
+ * @param {Tab Object} tab
  */
 function AttachDebugger(tab) {
     chrome.debugger.attach({tabId: tab.id}, "1.0", onAttach.bind(null, tab.id));
@@ -240,7 +197,7 @@ function AttachDebugger(tab) {
 /**
  * Function called after attaching debugger.
  * Just logging error.
- * @param int tabId
+ * @param {int} tabId
  */
 function onAttach(tabId){
     if(chrome.runtime.lastError){
@@ -251,45 +208,46 @@ function onAttach(tabId){
 
 /**
  * Debugger OnEvent function.
- * @param debugeeId {String}
- * @param msg {String}
- * @param param {Object}
+ * @param {String} debugeeId
+ * @param {String} msg
+ * @param {Object} param
  */
 function onEvent(debugeeId, msg, param) {
-    if(msg == 'Inspector.detached') {
-        // TODO check if a page is closed and set timer to stop.
+    // Ignore if it is debugger being detached or any other unused messages.
+    if(msg == 'Inspector.detached' || ignoredMessage.includes(msg)) {
         return;
     }
-
-    if(ignoredMessage.includes(msg)){
-        // Ignoring unused message.
-        return;
-    }
-
-    let item;
 
     if(msg == 'Network.requestWillBeSent') {
+
         // At the start of a request, make a new item and add it to items array.
         let newItem = {
             page: extractHostname(param.documentURL), // page url
             request: param.request.url,
             requestId: param.requestId, // request id to identify request
             cache: false, // if the transfer is from cache
-            dataLength: 0 // dataLength identify data length
+            dataLength: 0, // dataLength identify data length
+            updated: (new Date).getTime()
         };
+
         sessionMonitor.items.push(newItem);
         return;
+
     } else {
+
         // Ignore requestServedFromCache event
         if(msg == 'Network.requestServedFromCache') return;
 
         // Call getItem as promise so that received item is defined
-        getItem(debugeeId, param.requestId).then(
-            (item) => {
+        getItem(debugeeId, param.requestId)
+            .then((item) => {
+                item.updated = (new Date).getTime();
+
                 switch(msg) {
                     case "Network.responseReceived":
                         item.cache = param.response.fromDiskCache;
                         break;
+
                     case "Network.dataReceived":
                         // If data is encoded, use encodedDataLength
                         if(param.encodedDataLength){
@@ -298,10 +256,12 @@ function onEvent(debugeeId, msg, param) {
                             item.dataLength += param.dataLength;
                         }
                         break;
+
                     case "Network.loadingFailed":
                         // Failed https are counted as the transfer is still done.
                         console.warn("Loading failed ID " + item.requestId + "\n"
                             + "Reason: " + param.errorText);
+
                     case "Network.loadingFinished":
                         /**
                          * Check if data length calculated is zero yet loading
@@ -321,7 +281,9 @@ function onEvent(debugeeId, msg, param) {
                         storeItem(item);
 
                         break;
+
                     default:
+                        // Debug to tell if there are missed events.
                         console.log(msg);
                         console.log(param);
                         break;
@@ -333,23 +295,43 @@ function onEvent(debugeeId, msg, param) {
 
 /**
  * storeItem is a function thats called when a request is finished.
- * @param item {item Object}
+ * @param {item Object} item
  */
 function storeItem(item) {
-    // boolean variable to determine db update
-    let update = false;
-
     // Ignore empty network request
     if(item.dataLength === 0) return;
 
+    // boolean variable to determine db update
+    let updateSession = updatePage('session', item);
+    let updateStopwatch = (sessionMonitor.isStopwatch) ? updatePage('stopwatch', item) : false;
+
+    // Set changes to true to tell new data is added
+    if(updateSession || updateStopwatch) sessionMonitor.changes = true;
+
+    // Update indexedDB if update boolean is true.
+    if(updateSession) updateSessionStorage(targetPage);
+    if(updateStopwatch) updateStopwatchStorage(targetPage)
+}
+
+/**
+ * updatePage will update the page object of either session or stopwatch items.
+ * The function will then return boolean if the page object has been updated.
+ * @param {String} type
+ * @param {Item Object} item
+ * @returns {Boolean}
+ */
+function updatePage(type, item){
+    // Set the pages array to either session or stopwatch pages
+    let pages = (type === 'session') ? sessionMonitor.pages : sessionMonitor.stopwatchPages;
+    let update = false;
+
     // Find target page from pages array
-    targetPage = sessionMonitor.pages.find(function(e){
+    targetPage = pages.find(function(e){
         return e.domain === item.page;
     });
 
     // If targetPage is found, apply calculation to targetPage object.
     if(targetPage) {
-
         // Check if the data is a cache
         if(item.cache) {
             targetPage.cachedTransferred += item.dataLength;
@@ -357,8 +339,8 @@ function storeItem(item) {
             targetPage.transferred += item.dataLength;
         }
 
-        // Check if page last update is more than 5 seconds ago
-        if((new Date).getTime() - targetPage.update >= 2000){
+        // Check if page last update is more than a seconds ago
+        if((new Date).getTime() - targetPage.update >= 1000){
             update = true;
         }
 
@@ -380,18 +362,13 @@ function storeItem(item) {
 
         update = true;
         targetPage = newPage;
-        sessionMonitor.pages.push(newPage);
+        pages.push(newPage);
     }
-    // Set changes to true so that popup will update the data.
-    sessionMonitor.changes = true;
 
-    // Update indexedDB if update boolean is true.
-    if(update) updateStorage(targetPage);
-
-    // console.log('%c Item ID ' + item.requestId + ' stored.', 'color: green;');
-    // console.log(pages);
-    // console.log(items);
+    return update;
 }
+
+
 
 /**
  * getItem is an async function to retrieve the item. If the item is in items
@@ -410,13 +387,13 @@ async function getItem(debugeeId, requestId){
 
     // if item not found, make a new item
     if(!item){
-        console.warn("Item not found request " + requestId);
         item = {
             page: '', // page url
             request: '',
             requestId: requestId, // request id to identify request
             cache: false, // if the transfer is from cache
-            dataLength: 0 // dataLength identify data length
+            dataLength: 0, // dataLength identify data length
+            updated: (new Date).getTime()
         };
         return await defineItem(item, debugeeId);
     } else{
@@ -437,11 +414,6 @@ function defineItem(item, debugeeId){
             resolve(item);
         });
     });
-}
-
-function updateStorage(page){
-    updateSessionStorage(page);
-    if(sessionMonitor.isStopwatch) updateStopwatchStorage(page);
 }
 
 /**
@@ -466,7 +438,7 @@ function updateSessionStorage(page){
 }
 
 /**
- * updateSessionStorage is a function that will save the pages data into
+ * updateStopwatchStorage is a function that will save the pages data into
  * indexedDB.
  * @param page {Page Object}
  */
@@ -486,8 +458,10 @@ function updateStopwatchStorage(page){
     });
 }
 
-
-
+/**
+ * extractHostname is a function that will extract url into domain name.
+ * @param {String} url
+ */
 function extractHostname(url) {
     var hostname;
     //find & remove protocol (http, ftp, etc.) and get hostname
@@ -505,33 +479,10 @@ function extractHostname(url) {
     return hostname;
 }
 
-function GetTotal() {
-    return total;
-}
-
 /**
- * GetPages is called from popup.js to get the pages object.
- * first is a boolean that's true if its the first call from popup.js.
- * GetPages will then check if there's any changes made between the call
- * and last called.
- * @param first {Boolean}
+ * openMainPage is a function that will open the index.html in a new tab or
+ * in the current tab if the current tab is a newtab page.
  */
-function GetPages(first){
-    if(first) return sessionMonitor.pages;
-
-    if(sessionMonitor.changes){
-        sessionMonitor.changes = false;
-        return sessionMonitor.pages;
-    } else {
-        return null
-    }
-}
-
-function GetTimer(){
-    return (new Date).getTime() - sessionMonitor.timer;
-    // return timer;
-}
-
 function openMainPage(){
     chrome.tabs.query(
         {
@@ -555,17 +506,72 @@ function openMainPage(){
     );
 }
 
-function toggleStopwatch(){
-    // sessionMonitor.isStopwatch = !sessionMonitor.isStopwatch;
-    if(sessionMonitor.isStopwatch){
-        sessionMonitor.isStopwatch = false;
-        sessionMonitor.stopwatch = 0;
+
+
+/** ================= Getter and Setter for external script ================= */
+
+
+/**
+ * getPages is a function that will return the session pages object.
+ * First is a boolean variable to tell if it is the first call made.
+ * getPages will then check if there's any changes made between the current call
+ * and last call.
+ * @param {Boolean} first
+ */
+function getPages(first){
+    if(first) return sessionMonitor.pages;
+
+    if(sessionMonitor.changes){
+        sessionMonitor.changes = false;
+        return sessionMonitor.pages;
     } else {
-        sessionMonitor.isStopwatch = true;
-        sessionMonitor.stopwatch = (new Date).getTime();
+        return null
     }
 }
 
+/**
+ * getTimer is a function that will return the session timer.
+ */
+function getSessionTimer(){
+    return (new Date).getTime() - sessionMonitor.id;
+}
+
+/**
+ * getStopwatchTimer is a function that will return the stopwatch timer.
+ */
+function getStopwatchTimer(){
+    return (new Date).getTime() - sessionMonitor.stopwatch;
+}
+
+/**
+ * toggleStopwatch is a function that will toggle the stopwatch on and off.
+ */
+function toggleStopwatch(){
+    sessionMonitor.isStopwatch = !sessionMonitor.isStopwatch;
+    sessionMonitor.stopwatch = (sessionMonitor.isStopwatch) ? (new Date).getTime() : 0;
+}
+
+/**
+ * areStopwatch is a getter for isStopwatch.
+ */
+function areStopwatch(){
+    return sessionMonitor.isStopwatch;
+}
+
+/**
+ * restartSession is a function to reset the session.
+ */
+function restartSession(){
+    sessionMonitor.id = (new Date).getTime();
+    sessionMonitor.pages = [];
+    sessionMonitor.items = [];
+}
+
+// Debug command
+function printpage(){
+    console.log("aaaaa");
+    console.log(sessionMonitor);
+}
 // function isChanged(){
 //     return
 // }

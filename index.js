@@ -5,8 +5,6 @@ let lastStopwatch = 0;
 let pageData = [];
 let currentPage = 'main'; // currentPage allows 3 page: main / session / stopwatch
 
-// TODO
-// Fix feature to switch pages between main, session, and stopwatch
 
 (function() {
     dbPromise = idb.open('session-monitor-db', 1, upgradeDB => {
@@ -15,17 +13,35 @@ let currentPage = 'main'; // currentPage allows 3 page: main / session / stopwat
     });
 
     document.addEventListener("DOMContentLoaded", function() {
-        loadSessionPage(true);
+        loadMainPage(true);
+
         $(window).on('scroll', function(){
             if($(window).scrollTop() + $(window).height() >= $(document).height()) {
-                loadSessionPage(false);
+                (currentPage === 'main') ?
+                    loadMainPage(false) :
+                    (currentPage === 'session') ?
+                        loadSessionPage(false) :
+                        loadStopwatchPage(false);
             }
         })
-        $('#stopwatch-btn, #session-btn, #main-btn').on('click', function(){
-            $(this).addClass('active');
-            $('#' + currentPage + '-btn').removeClass('active');
-            currentPage = $(this).attr('id').split('-')[0];
 
+        $('#stopwatch-btn, #session-btn, #main-btn').on('click', function(){
+            let nextPage = $(this).attr('id').split('-')[0];
+            if(nextPage !== currentPage){
+                $(this).addClass('active');
+                $('#' + currentPage + '-btn').removeClass('active');
+
+
+                (nextPage === 'main') ?
+                    loadMainPage(true) :
+                    (nextPage === 'session') ?
+                        loadSessionPage(true) :
+                        loadStopwatchPage(true);
+            }
+
+
+
+            currentPage = nextPage;
         });
     });
 
@@ -39,6 +55,7 @@ function loadMainPage(firstLoad){
     if(firstLoad){
         lastSession = 0;
         lastStopwatch = 0;
+        $('.table-data>div:gt(1)').remove();
     }
     let mainData = [];
     // Using promises, the data from database is loaded step by step.
@@ -65,6 +82,7 @@ function loadSessionPage(firstLoad){
     if(firstLoad){
         lastSession = 0;
         lastStopwatch = 0;
+        $('.table-data>div:gt(1)').remove();
     }
     // Using promises, the data from database is loaded step by step.
     openDatabase('session').then( sessionData => {
@@ -85,6 +103,7 @@ function loadStopwatchPage(firstLoad){
     if(firstLoad){
         lastSession = 0;
         lastStopwatch = 0;
+        $('.table-data>div:gt(1)').remove();
     }
     // Using promises, the data from database is loaded step by step.
     openDatabase('stopwatch').then( sessionData => {
@@ -303,10 +322,14 @@ function getHTMLFromData(datas){
 
     return promise = new Promise(
         function (resolve, reject) {
+            if(datas.length === 0){
+                reject(currentPage + ' page reach the end.');
+            }
+
             if(html.length !== 0){
                 resolve(html);
             } else {
-                reject(new Error('html is empty'));
+                reject('Generated HTML is empty.');
             }
         }
     );
@@ -322,7 +345,7 @@ function getHTMLFromData(datas){
  */
 function updatePagex(first){
     // Get pages from background.js and with boolean to check first or not call.
-    var pages = background.GetPages(first);
+    var pages = background.getPages(first);
 
     // Use hard-coded timer to reduce the amount of calls between popup and background.
     if(!first){

@@ -2,6 +2,8 @@ const background = chrome.extension.getBackgroundPage();
 var ctx;
 var chart;
 
+let page = 'session'; // page is to determine current page, allow 'session'/'stopwatch'
+
 var tab;
 
 var timer;
@@ -50,40 +52,13 @@ var data = {
     }
 };
 
-var dummydata = [
-    {
-        domain: 'www.youtube.com',
-        transferred: 50204,
-        cachedTransferred: 10000,
-        timer: 0
-    },
-    {
-        domain: 'www.soundcloud.com',
-        transferred: 5858585,
-        cachedTransferred: 10000,
-        timer: 0
-    },
-    {
-        domain: 'www.aws.com',
-        transferred: 1293819203,
-        cachedTransferred: 10000,
-        timer: 0
-    },
-    {
-        domain: 'www.google.com',
-        transferred: 129103,
-        cachedTransferred: 10000,
-        timer: 0
-    }
-]
-
 // Wait untill popup page finish loading
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize canvas' context and chart
     ctx = document.getElementById('myChart').getContext('2d');
     chart = new Chart(ctx, data);
     // Initialize timer
-    timer = background.GetTimer();
+    timer = background.getSessionTimer();
 
     $('.btnSave').on('click', function(){
         background.savuu();
@@ -93,16 +68,33 @@ document.addEventListener('DOMContentLoaded', function() {
         background.printuu();
     });
 
+    $('.btnPrintPage').on('click', function(){
+        background.printpage();
+    });
+
     $('.btnClear').on('click', function(){
         background.clearuu();
     });
 
-    $('.btnPage').on('click', function(){
-        background.openMainPage();
-    });
 
     $('.btnStopwatch').on('click', function(){
         background.toggleStopwatch();
+    });
+
+
+
+    $('.btn-main-page').on('click', function(){
+        background.openMainPage();
+    });
+
+    $('.btn-nav-session, .btn-nav-stopwatch').on('click', function(){
+        let clicked = $(this).attr('class').split(' ')[0].split('-')[2];
+        // console.log();
+        if(page !== clicked){
+            $('.btn-nav-session, .btn-nav-stopwatch').toggleClass('btn-nav-active');
+            changePage(clicked);
+        }
+
     });
 
     // Call updatePage the first time.
@@ -114,6 +106,26 @@ document.addEventListener('DOMContentLoaded', function() {
     }, 1000);
 });
 
+function changePage(type){
+    page = type;
+
+    if(type === 'session'){
+        timer = background.getSessionTimer();
+        // updatePageTable(background.GetPages());
+        updatePage(true);
+    } else{
+        if(background.IsStopwatch()){
+            timer = background.getSessionTimer();
+            updatePage(true);
+        } else {
+            timer = 0;
+            updatePageTable([]);
+            updatePageChart([]);
+            updatePage(true);
+        }
+    }
+}
+
 
 /**
  * updatePage is a function that will update the popup page. updatePage will
@@ -122,7 +134,7 @@ document.addEventListener('DOMContentLoaded', function() {
  */
 function updatePage(first){
     // Get pages from background.js and with boolean to check first or not call.
-    var pages = background.GetPages(first);
+    var pages = background.getPages(first);
 
     // Use hard-coded timer to reduce the amount of calls between popup and background.
     if(!first){

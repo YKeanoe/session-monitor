@@ -16,6 +16,16 @@ body{
     padding: 8px;
 }
 
+#footer{
+    background-color: #4D658E;
+    color: #EEEEEE;
+    padding: 8px;
+    text-align: center;
+    font-size: 1.2em;
+    display: flex;
+    justify-content: space-evenly;
+}
+
 #session-table{
     width: 100%;
 }
@@ -59,4 +69,33 @@ body{
 
 #session-table > tbody > tr > * {
     padding: 3px 8px;
+}
+
+.tab {
+    display: flex;
+    justify-content: space-evenly;
+    margin: 4px -8px 0px -8px;
+    border-bottom: solid 1px #aaaaaa;
+}
+
+.btn-nav-stopwatch, .btn-nav-session {
+    flex: 0 0 45%;
+    margin-bottom: -1px;
+    border: solid 1px #aaaaaa;
+    border-radius: 5px 5px 0px 0px;
+    cursor: pointer;
+}
+
+/* .btn-nav-stopwatch, .btn-nav-session {
+    flex: 1 0 50%;
+    margin-bottom: -1px;
+} */
+
+.btn-nav-active {
+    border: solid 1px #aaaaaa;
+    border-bottom: white;
+}
+
+.btn-main-page, .btn-debugger, .btn-contact {
+    flex: 0 0 25%;
 }
