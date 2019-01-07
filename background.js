@@ -46,6 +46,7 @@ let sessionMonitor = {
      * the stopwatch has started.
      */
     stopwatch: 0,
+    stopwatchRuntime: 0,
     /**
      * isStopwatch is a boolean used to tell if the stopwatch is running
      */
@@ -57,7 +58,8 @@ let sessionMonitor = {
     /**
      * id is a unique ID for each session. id will be created using unix ms.
      */
-    id: 0
+    id: 0,
+    popupPage: 'session'
 }
 
 /**
@@ -530,17 +532,42 @@ function getPages(first){
 }
 
 /**
+ * getStopwatchPages is a function that will return the stopwatch pages object.
+ * First is a boolean variable to tell if it is the first call made.
+ * getStopwatchPages will then check if there's any changes made between
+ * the current call and last call.
+ * @param {Boolean} first
+ */
+function getStopwatchPages(first){
+    if(first) return sessionMonitor.stopwatchPages;
+
+    if(sessionMonitor.changes){
+        sessionMonitor.changes = false;
+        return sessionMonitor.stopwatchPages;
+    } else {
+        return null
+    }
+}
+
+/**
  * getTimer is a function that will return the session timer.
  */
 function getSessionTimer(){
     return (new Date).getTime() - sessionMonitor.id;
 }
 
+// TODO WORK ON STOPWATCH PAUSE/START/RESET ALGORITHM
+
 /**
  * getStopwatchTimer is a function that will return the stopwatch timer.
  */
 function getStopwatchTimer(){
-    return (new Date).getTime() - sessionMonitor.stopwatch;
+    if(sessionMonitor.stopwatch === 0){
+        return 0
+    } else {
+        return (new Date).getTime() - sessionMonitor.stopwatch;
+
+    }
 }
 
 /**
@@ -548,7 +575,24 @@ function getStopwatchTimer(){
  */
 function toggleStopwatch(){
     sessionMonitor.isStopwatch = !sessionMonitor.isStopwatch;
-    sessionMonitor.stopwatch = (sessionMonitor.isStopwatch) ? (new Date).getTime() : 0;
+
+    // If paused, Set when it is paused
+    if(!sessionMonitor.isStopwatch) {
+        sessionMonitor.stopwatchRuntime += (new Date).getTime() - sessionMonitor.stopwatch;
+    }
+
+    // If started, set stopwatch to new date time
+    else {
+        if(sessionMonitor.stopwatch === 0){
+            sessionMonitor.stopwatch = (new Date).getTime();
+        }
+    }
+}
+
+function resetStopwatch(){
+    sessionMonitor.stopwatch = 0;
+    sessionMonitor.isStopwatch = false;
+    sessionMonitor.stopwatchPages = [];
 }
 
 /**
@@ -575,3 +619,11 @@ function printpage(){
 // function isChanged(){
 //     return
 // }
+
+function getPopupPage(){
+    return sessionMonitor.popupPage;
+}
+
+function changePopupPage(){
+    sessionMonitor.popupPage = (sessionMonitor.popupPage === 'session') ? 'stopwatch' : 'session';
+}

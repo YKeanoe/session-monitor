@@ -32,11 +32,10 @@
         <Button class="btnPrintPage">
             Print pages
         </Button>
-
-
         <br/>
+
         <div class='tab'>
-            <Button class="btn-nav-session btn-nav-active">
+            <Button class="btn-nav-session">
                 Session
             </Button>
             <Button class="btn-nav-stopwatch">
@@ -52,11 +51,22 @@
                 <div class="timer-time">
                     <span id="session-timer"></span>
                 </div>
+
+
+
+                <button class='stopwatch-toggle hide'>
+                    Start
+                </button>
+                <button class='stopwatch-reset hide'>
+                    Reset
+                </button>
+
             </div>
 
             <br/>
 
             <canvas id="myChart"></canvas>
+
 
             <table id="session-table">
                 <tbody id="session-files">

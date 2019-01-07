@@ -57,6 +57,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize canvas' context and chart
     ctx = document.getElementById('myChart').getContext('2d');
     chart = new Chart(ctx, data);
+    page = background.getPopupPage();
     // Initialize timer
     timer = background.getSessionTimer();
 
@@ -77,11 +78,15 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
 
-    $('.btnStopwatch').on('click', function(){
+    $('.stopwatch-toggle').on('click', function(){
         background.toggleStopwatch();
+        updatePage(true);
     });
 
-
+    $('.stopwatch-reset').on('click', function(){
+        background.resetStopwatch();
+        updatePage(true);
+    });
 
     $('.btn-main-page').on('click', function(){
         background.openMainPage();
@@ -107,20 +112,22 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function changePage(type){
+    // Do nothing if it's the same
+    if(page === type) return;
+
     page = type;
+
+    background.changePopupPage();
 
     if(type === 'session'){
         timer = background.getSessionTimer();
-        // updatePageTable(background.GetPages());
         updatePage(true);
     } else{
-        if(background.IsStopwatch()){
-            timer = background.getSessionTimer();
+        if(background.areStopwatch()){
+            timer = background.getStopwatchTimer();
             updatePage(true);
         } else {
             timer = 0;
-            updatePageTable([]);
-            updatePageChart([]);
             updatePage(true);
         }
     }
@@ -133,21 +140,53 @@ function changePage(type){
  * @param first {Boolean}
  */
 function updatePage(first){
-    // Get pages from background.js and with boolean to check first or not call.
-    var pages = background.getPages(first);
+    /**
+     * Get either session or stopwatch pages from background.js and
+     * with boolean to check first or not call.
+     **/
+    let datas = (page === 'session') ? background.getPages(first) : background.getStopwatchPages(first);
 
-    // Use hard-coded timer to reduce the amount of calls between popup and background.
-    if(!first){
-        timer += 1000;
+    if(first){
+        if(page === 'session'){
+            timer = background.getSessionTimer();
+            if(!$('.btn-nav-session').hasClass('btn-nav-active')){
+                $('.btn-nav-session').toggleClass('btn-nav-active');
+            }
+            $('.stopwatch-toggle').addClass('hide');
+            $('.stopwatch-reset').addClass('hide');
+            $('.timer-title').text('Session Timer')
+        } else {
+            timer = background.getStopwatchTimer();
+            if(!$('.btn-nav-stopwatch').hasClass('btn-nav-active')){
+                $('.btn-nav-stopwatch').toggleClass('btn-nav-active');
+            }
+            $('.stopwatch-toggle').removeClass('hide');
+            $('.stopwatch-reset').removeClass('hide');
+            let btnText = background.areStopwatch() ? 'Stop' : 'Start';
+            $('.stopwatch-toggle').text(btnText);
+            $('.timer-title').text('Stopwatch Timer')
+        }
+    } else {
+        if(page === 'session'){
+            timer += 1000;
+        } else {
+            timer += (background.areStopwatch()) ? 1000 : 0;
+        }
     }
 
+
     // Set timer UI.
-    $('#session-timer').text(moment.duration(timer, 'milliseconds').format('hh:mm:ss', {trim: false}));
+    console.log(timer);
+    if(timer === 0){
+        $('#session-timer').text(moment.duration(0, 'milliseconds').format('hh:mm:ss', {trim: false}));
+    } else {
+        $('#session-timer').text(moment.duration(timer, 'milliseconds').format('hh:mm:ss', {trim: false}));
+    }
 
     // Check if pages from background changed.
-    if(pages) {
-        updatePageTable(pages);
-        updatePageChart(pages);
+    if(datas) {
+        updatePageTable(datas);
+        updatePageChart(datas);
         chart.update();
     }
 }
@@ -315,49 +354,6 @@ function convertTimer(t){
 
     return string;
 }
-
-/*
-// TODO, use momentjs to convert better
-function convertTimer(t){
-    var timer = "Session been running for ";
-    var d = h = m = s = 0;
-    t = t/1000;
-    if(t >= 86400){
-        d = Math.floor(t / 86400);
-        t = t % 86400;
-    }
-    if(t >= 3600){
-        h = Math.floor(t / 3600);
-        t = t % 3600;
-    }
-    if(t >= 60){
-        m = Math.floor(t / 60);
-        t = t % 60;
-    }
-    if(t > 0){
-        s = Math.floor(t);
-    }
-
-    if(d > 0){
-        timer += (d > 1) ? d + " Days" : d + " Day";
-    }
-    if(h > 0){
-        timer += (d>0) ? " " : "";
-        timer += (h > 1) ? h + " Hours" : h + " hour";
-    }
-    if(m > 0){
-        timer += (h > 0) ? " " : "" ;
-        timer += (m > 1) ? m + " Minutes" : m + " Minute";
-    }
-    if(s > 0){
-        timer += (m > 0) ? " " : "" ;
-        timer += (s > 1) ? s + " Seconds" : s + " Second";
-    }
-
-    return timer;
-}
-
-*/
 
 function convertFiles(d){
     var html = "";
