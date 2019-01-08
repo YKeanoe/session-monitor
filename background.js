@@ -42,11 +42,21 @@ let sessionMonitor = {
      */
     changes: false,
     /**
-     * stopwatch is an integer used to store how much time has passed since
-     * the stopwatch has started.
+     * stopwatch is an integer used to store the unix time of the stopwatch is
+     * started and as the stopwatch ID
      */
     stopwatch: 0,
-    stopwatchRuntime: 0,
+    /**
+     * stopwatchPausedRuntime is an integer used to store the total millisecond
+     * of paused time
+     */
+    stopwatchPausedRuntime: 0,
+    /**
+     * stopwatchPaused is an integer used to store the unix time of when
+     * the stopwatch is paused
+     */
+    stopwatchPaused: 0,
+
     /**
      * isStopwatch is a boolean used to tell if the stopwatch is running
      */
@@ -554,21 +564,28 @@ function getStopwatchPages(first){
  */
 function getSessionTimer(){
     return (new Date).getTime() - sessionMonitor.id;
-}
 
-// TODO WORK ON STOPWATCH PAUSE/START/RESET ALGORITHM
+}
 
 /**
  * getStopwatchTimer is a function that will return the stopwatch timer.
  */
 function getStopwatchTimer(){
-    if(sessionMonitor.stopwatch === 0){
+    // If stopwatch is 0 means it is turned off
+    if(sessionMonitor.stopwatch === 0) {
         return 0
     } else {
-        return (new Date).getTime() - sessionMonitor.stopwatch;
-
+        // If stopwatch is running
+        if(sessionMonitor.isStopwatch) {
+            return (new Date).getTime() - sessionMonitor.stopwatch - sessionMonitor.stopwatchPausedRuntime;
+        }
+        // If stopwatch is paused
+        else {
+            return sessionMonitor.stopwatchPaused - sessionMonitor.stopwatch - sessionMonitor.stopwatchPausedRuntime;
+        }
     }
 }
+
 
 /**
  * toggleStopwatch is a function that will toggle the stopwatch on and off.
@@ -576,21 +593,26 @@ function getStopwatchTimer(){
 function toggleStopwatch(){
     sessionMonitor.isStopwatch = !sessionMonitor.isStopwatch;
 
-    // If paused, Set when it is paused
+    // If paused
     if(!sessionMonitor.isStopwatch) {
-        sessionMonitor.stopwatchRuntime += (new Date).getTime() - sessionMonitor.stopwatch;
+        sessionMonitor.stopwatchPaused = (new Date).getTime();
     }
-
-    // If started, set stopwatch to new date time
+    // If started
     else {
+        // If start from reset
         if(sessionMonitor.stopwatch === 0){
             sessionMonitor.stopwatch = (new Date).getTime();
+        }
+        // If start from paused
+        else {
+            sessionMonitor.stopwatchPausedRuntime += (new Date).getTime() - sessionMonitor.stopwatchPaused;
         }
     }
 }
 
 function resetStopwatch(){
     sessionMonitor.stopwatch = 0;
+    sessionMonitor.stopwatchPausedRuntime = 0;
     sessionMonitor.isStopwatch = false;
     sessionMonitor.stopwatchPages = [];
 }
@@ -602,23 +624,10 @@ function areStopwatch(){
     return sessionMonitor.isStopwatch;
 }
 
-/**
- * restartSession is a function to reset the session.
- */
-function restartSession(){
-    sessionMonitor.id = (new Date).getTime();
-    sessionMonitor.pages = [];
-    sessionMonitor.items = [];
-}
-
 // Debug command
 function printpage(){
-    console.log("aaaaa");
     console.log(sessionMonitor);
 }
-// function isChanged(){
-//     return
-// }
 
 function getPopupPage(){
     return sessionMonitor.popupPage;

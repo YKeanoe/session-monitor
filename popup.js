@@ -61,23 +61,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize timer
     timer = background.getSessionTimer();
 
-    $('.btnSave').on('click', function(){
-        background.savuu();
-    });
-
-    $('.btnPrint').on('click', function(){
-        background.printuu();
-    });
-
-    $('.btnPrintPage').on('click', function(){
-        background.printpage();
-    });
-
-    $('.btnClear').on('click', function(){
-        background.clearuu();
-    });
-
-
     $('.stopwatch-toggle').on('click', function(){
         background.toggleStopwatch();
         updatePage(true);
@@ -87,6 +70,26 @@ document.addEventListener('DOMContentLoaded', function() {
         background.resetStopwatch();
         updatePage(true);
     });
+
+    $('.btn-contact').on('click', function(){
+        var win = window.open('https://thisisyohan.com');
+        win.focus();
+    });
+    $('.btn-debugger').on('click', function(){
+        // var win = window.open('chrome://flags');
+        // win.focus();
+        // chrome.tabs.update({ url: 'chrome://flags/' });
+        // chrome.tabs.query({active: true}, function(tab) {
+        //     // If selected tab is newtab, redirect tab. Else, open new tab.
+        //     if(tab[0].url === 'chrome://newtab/') {
+        //         chrome.tabs.update(tab[0].id, {url: 'index.html'}, function(){});
+        //     } else {
+                chrome.tabs.create({ url: "chrome://flags/#silent-debugger-extension-api"});
+
+        // });
+    });
+
+    $('.btn-debugger')
 
     $('.btn-main-page').on('click', function(){
         background.openMainPage();
@@ -108,7 +111,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Set an interval and call updatePage each seconds.
     setInterval(function() {
         updatePage(false);
-    }, 1000);
+    }, 500);
 });
 
 function changePage(type){
@@ -168,9 +171,9 @@ function updatePage(first){
         }
     } else {
         if(page === 'session'){
-            timer += 1000;
+            timer = background.getSessionTimer();
         } else {
-            timer += (background.areStopwatch()) ? 1000 : 0;
+            timer = background.getStopwatchTimer();
         }
     }
 
