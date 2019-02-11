@@ -89,8 +89,6 @@ document.addEventListener('DOMContentLoaded', function() {
         // });
     });
 
-    $('.btn-debugger')
-
     $('.btn-main-page').on('click', function(){
         background.openMainPage();
     });
